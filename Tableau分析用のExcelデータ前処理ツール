@@ -1,0 +1,134 @@
+▼Tableau ×Excelデータ分析＿VSCODEで動くGUIツールでExcelのデータ前処理を簡単に！
+Tableauでの分析がより効率的になるよう、データ品質の問題を事前に解決できるツールです！
+
+▼VSCODE起動
+desktop\excel> py guiexelmaesyori.py
+
+🚀 使用方法
+
+起動: python tableau_preprocessor_gui.py
+ファイル選択: 「📂 ファイル選択」ボタンでExcel/CSVを読み込み
+データ確認: 右側パネルでデータをプレビュー
+処理実行: 左側の各ボタンで必要な処理を実行
+保存: 「📄 Excel保存」または「📄 CSV保存」で結果を保存
+
+🛠️ 主要機能
+
+空行削除: 完全に空の行を自動削除
+重複行削除: 重複するレコードを除去
+欠損値処理: 複数の方法で欠損値を処理（ダイアログで選択）
+テキスト整形: 前後空白削除、連続空白正規化
+型変換: 数値・日付の自動変換
+フィルタリング: 条件指定でデータをフィルタ
+列名変更: 直感的な列名変更機能
+
+このGUIツールを使えば、コードを書くことなく効率的にTableau用データの前処理が行えます！
+
+ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+
+Tableauでの分析に向けたExcelデータの前処理の基本を効率化するツールを作成します。
+データの読み込み、クリーニング、変換、エクスポートができる包括的なツールにします。
+Tableau分析用のExcelデータ前処理ツールを作成しました！このツールは以下の機能を提供します。
+
+## 🔧 主な機能
+
+**データクリーニング:**
+- 空行・空列の自動削除
+- 重複データの除去
+- 欠損値処理（削除/前方埋め/0埋め/カスタム値）
+
+**データ変換:**
+- 空白文字の削除
+- 数値データの自動型変換
+- 列名の変更
+- 条件に基づくデータフィルタリング
+
+**エクスポート:**
+- 処理済みデータをExcel形式で保存
+- CSV形式での保存にも対応
+
+## 🚀 使い方
+
+1. **ファイルアップロード**: 左側のアップロードエリアにExcelファイルをドラッグ&ドロップ
+2. **データ確認**: 読み込まれたデータの概要と内容をプレビュー
+3. **前処理実行**: 必要な処理ボタンをクリックして実行
+4. **結果確認**: 処理後のデータを確認
+5. **エクスポート**: 最終的なデータをTableau用にダウンロード
+
+データ概要セクションでは行数、列数、空セル数、重複行数がリアルタイムで表示され、処理の効果を確認できます。すべての操作は元データを保持しているため、「データをリセット」ボタンでいつでも最初の状態に戻せます。
+
+ーーーーーーーーーーーーーーーーーーーーーーーー
+☆今後使う方へ
+VSCodeでTableau用データ前処理を行うPythonコードを作成します！包括的なデータクリーニング・変換機能を持つクラスベースのコードにします。VSCode用のTableau前処理Pythonコードを作成しました！このコードは包括的なデータ前処理機能を提供する`TableauDataPreprocessor`クラスです。
+
+## 🔧 主な機能
+
+**データ読み込み・分析:**
+- Excel/CSV自動読み込み（文字エンコーディング自動判定）
+- データ概要表示・プレビュー機能
+- 処理ログ記録
+
+**クリーニング機能:**
+- 空行・空列削除（閾値指定可能）
+- 重複データ除去
+- 欠損値処理（7種類の方法）
+- テキストデータクリーニング
+
+**変換機能:**
+- データ型自動変換
+- カスタムフィルタリング
+- 列名変更
+- Tableau最適化
+
+## 📦 必要なライブラリ
+
+```bash
+pip install pandas numpy openpyxl
+pip install pandas openpyxl
+```
+
+## 🚀 基本的な使用方法
+
+```python
+# 1. インスタンス作成とデータ読み込み
+processor = TableauDataPreprocessor("your_data.xlsx")
+
+# 2. データ概要確認
+processor.show_data_info()
+processor.preview_data()
+
+# 3. 基本クリーニング実行
+processor.remove_empty_rows()
+processor.remove_duplicates()
+processor.clean_text_data()
+processor.convert_data_types()
+
+# 4. Tableau用保存
+processor.create_tableau_extract("clean_data.xlsx")
+```
+
+## 💡 高度な使用例　自己設定してくださいませ。
+
+```python
+# カスタムフィルタリング
+conditions = {
+    'sales_amount': {'operator': '>', 'value': 1000},
+    'region': {'operator': 'in', 'value': ['Tokyo', 'Osaka']}
+}
+processor.filter_data(conditions)
+
+# 欠損値を平均値で埋める
+processor.fill_missing_values(strategy='mean', columns=['price'])
+
+# 手動型変換
+type_mapping = {'date_col': 'datetime', 'category_col': 'category'}
+processor.convert_data_types(type_mapping=type_mapping)
+```
+ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+☆動かないときは
+tkinterは標準ライブラリなのでDLをお願い致します。
+
+☆テスト環境
+Windows　VSCODE　Python導入済み
+
+
