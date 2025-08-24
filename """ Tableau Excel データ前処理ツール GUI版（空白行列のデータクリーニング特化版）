@@ -1,0 +1,2525 @@
+"""
+Tableau Excel データ前処理ツール GUI版（空白行列のデータクリーニング特化版）
+Author: Claude
+Description: ExcelデータをTableau分析用に効率的に前処理するためのGUIツール
+"""
+
+import pandas as pd
+import numpy as np
+import os
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, scrolledtext
+from datetime import datetime
+from typing import List, Dict, Optional, Union, Any
+import warnings
+warnings.filterwarnings('ignore')
+
+
+class TableauPreprocessorGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("📊 Tableau Excel前処理ツール")
+        self.root.geometry("1400x800")
+        self.root.configure(bg='#f0f0f0')
+        
+        # データ関連変数
+        self.data = None
+        self.original_data = None
+        self.data_info = {}
+        self.processing_log = []
+        self.file_path = None
+        
+        # スタイル設定
+        self.setup_styles()
+        
+        # GUI構築
+        self.create_widgets()
+        
+        # 初期状態設定（エクスポートボタンを有効化）
+        self.update_button_states()
+        self.force_enable_all_export_buttons_startup()
+    
+    def setup_styles(self):
+        """スタイルを設定"""
+        self.style = ttk.Style()
+        
+        # テーマ設定
+        available_themes = self.style.theme_names()
+        if 'clam' in available_themes:
+            self.style.theme_use('clam')
+        
+        # カスタムスタイル
+        self.style.configure('Title.TLabel', font=('Arial', 16, 'bold'))
+        self.style.configure('Heading.TLabel', font=('Arial', 12, 'bold'))
+        self.style.configure('Action.TButton', font=('Arial', 10, 'bold'))
+        self.style.configure('Export.TButton', font=('Arial', 11, 'bold'), foreground='white')
+    
+    def create_widgets(self):
+        """GUIウィジェットを作成"""
+        # メインフレーム
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # グリッド設定
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(1, weight=1)
+        main_frame.rowconfigure(1, weight=1)
+        
+        # ヘッダー
+        header_frame = ttk.Frame(main_frame)
+        header_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        title_label = ttk.Label(header_frame, text="📊 Tableau Excel前処理ツール", style='Title.TLabel')
+        title_label.pack()
+        
+        subtitle_label = ttk.Label(header_frame, text="ExcelデータをTableau分析用に効率的にクリーニング・変換")
+        subtitle_label.pack()
+        
+        # 左側パネル（コントロール）
+        self.create_control_panel(main_frame)
+        
+        # 右側パネル（データ表示）
+        self.create_data_panel(main_frame)
+    
+    def create_control_panel(self, parent):
+        """左側のコントロールパネルを作成"""
+        control_frame = ttk.Frame(parent, width=380)
+        control_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
+        control_frame.grid_propagate(False)
+        
+        # ファイル選択セクション
+        file_section = ttk.LabelFrame(control_frame, text="📁 ファイル操作", padding="10")
+        file_section.pack(fill=tk.X, pady=(0, 10))
+        
+        self.file_label = ttk.Label(file_section, text="ファイルが選択されていません", foreground='gray')
+        self.file_label.pack(fill=tk.X, pady=(0, 5))
+        
+        file_button_frame = ttk.Frame(file_section)
+        file_button_frame.pack(fill=tk.X)
+        
+        self.load_button = ttk.Button(file_button_frame, text="📂 ファイル選択", 
+                                     command=self.load_file, style='Action.TButton')
+        self.load_button.pack(side=tk.LEFT, padx=(0, 5))
+        
+        self.reload_button = ttk.Button(file_button_frame, text="🔄 再読み込み", 
+                                       command=self.reload_file, state='disabled')
+        self.reload_button.pack(side=tk.LEFT)
+        
+        # データ情報セクション
+        info_section = ttk.LabelFrame(control_frame, text="📊 データ概要", padding="10")
+        info_section.pack(fill=tk.X, pady=(0, 10))
+        
+        self.info_text = tk.Text(info_section, height=8, font=('Consolas', 9), 
+                                state='disabled', bg='#f8f8f8')
+        self.info_text.pack(fill=tk.BOTH)
+        
+        # クリーニングセクション
+        cleaning_section = ttk.LabelFrame(control_frame, text="🧹 データクリーニング", padding="10")
+        cleaning_section.pack(fill=tk.X, pady=(0, 10))
+        
+        self.empty_rows_button = ttk.Button(cleaning_section, text="空行削除", 
+                                           command=self.remove_empty_rows, state='disabled')
+        self.empty_rows_button.pack(fill=tk.X, pady=2)
+        
+        self.empty_cols_button = ttk.Button(cleaning_section, text="空列削除", 
+                                           command=self.remove_empty_columns, state='disabled')
+        self.empty_cols_button.pack(fill=tk.X, pady=2)
+        
+        self.duplicates_button = ttk.Button(cleaning_section, text="重複行削除", 
+                                           command=self.remove_duplicates, state='disabled')
+        self.duplicates_button.pack(fill=tk.X, pady=2)
+        
+        self.missing_button = ttk.Button(cleaning_section, text="欠損値処理", 
+                                        command=self.fill_missing_dialog, state='disabled')
+        self.missing_button.pack(fill=tk.X, pady=2)
+        
+        self.missing_analysis_button = ttk.Button(cleaning_section, text="📊 欠損値分析", 
+                                                 command=self.show_missing_analysis, state='disabled')
+        self.missing_analysis_button.pack(fill=tk.X, pady=2)
+        
+        self.data_diagnosis_button = ttk.Button(cleaning_section, text="🔍 データ診断", 
+                                               command=self.show_data_diagnosis, state='disabled')
+        self.data_diagnosis_button.pack(fill=tk.X, pady=2)
+        
+        self.empty_preview_button = ttk.Button(cleaning_section, text="👁️ 空行列プレビュー", 
+                                              command=self.show_empty_preview, state='disabled')
+        self.empty_preview_button.pack(fill=tk.X, pady=2)
+        
+        # 変換セクション
+        transform_section = ttk.LabelFrame(control_frame, text="🔄 データ変換", padding="10")
+        transform_section.pack(fill=tk.X, pady=(0, 10))
+        
+        self.text_clean_button = ttk.Button(transform_section, text="テキスト整形", 
+                                           command=self.clean_text_data, state='disabled')
+        self.text_clean_button.pack(fill=tk.X, pady=2)
+        
+        self.type_convert_button = ttk.Button(transform_section, text="型変換", 
+                                             command=self.convert_data_types, state='disabled')
+        self.type_convert_button.pack(fill=tk.X, pady=2)
+        
+        self.rename_button = ttk.Button(transform_section, text="列名変更", 
+                                       command=self.rename_columns_dialog, state='disabled')
+        self.rename_button.pack(fill=tk.X, pady=2)
+        
+        self.filter_button = ttk.Button(transform_section, text="データフィルタ", 
+                                       command=self.filter_data_dialog, state='disabled')
+        self.filter_button.pack(fill=tk.X, pady=2)
+        
+        # エクスポートセクション（修正版・常に表示）
+        export_section = ttk.LabelFrame(control_frame, text="💾 データ出力", padding="15")
+        export_section.pack(fill=tk.X, pady=(0, 10))
+        
+        # ===== メインエクスポートボタン（大きく目立たせる・常に有効）=====
+        main_export_frame = ttk.Frame(export_section)
+        main_export_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        self.main_export_button = tk.Button(main_export_frame, 
+                                           text="📄 データを保存する", 
+                                           command=self.safe_export_data,
+                                           font=('Arial', 12, 'bold'),
+                                           bg='#4CAF50',
+                                           fg='white',
+                                           activebackground='#45a049',
+                                           relief='raised',
+                                           bd=3,
+                                           height=2,
+                                           state='normal')  # 常に有効
+        self.main_export_button.pack(fill=tk.X, pady=5)
+        
+        # 個別エクスポートボタン
+        individual_frame = ttk.LabelFrame(export_section, text="個別保存", padding="10")
+        individual_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        export_buttons_frame = ttk.Frame(individual_frame)
+        export_buttons_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        self.export_excel_button = tk.Button(export_buttons_frame, text="📊 Excel保存", 
+                                             command=self.quick_export_excel, 
+                                             state='normal',  # 常に有効
+                                             font=('Arial', 10),
+                                             bg='#2196F3',
+                                             fg='white',
+                                             width=12,
+                                             relief='raised',
+                                             bd=2)
+        self.export_excel_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        
+        self.export_csv_button = tk.Button(export_buttons_frame, text="📄 CSV保存", 
+                                           command=self.quick_export_csv, 
+                                           state='normal',  # 常に有効
+                                           font=('Arial', 10),
+                                           bg='#FF9800',
+                                           fg='white',
+                                           width=12,
+                                           relief='raised',
+                                           bd=2)
+        self.export_csv_button.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # 強制有効化ボタン（デバッグ用）
+        debug_frame = ttk.Frame(individual_frame)
+        debug_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        self.force_enable_button = ttk.Button(debug_frame, text="🔧 ボタン有効化", 
+                                             command=self.force_enable_export,
+                                             style='Action.TButton')
+        self.force_enable_button.pack(side=tk.LEFT, padx=(0, 5))
+        
+        self.test_button = ttk.Button(debug_frame, text="🔍 状態確認", 
+                                     command=self.test_data_status)
+        self.test_button.pack(side=tk.LEFT)
+        
+        # エクスポート設定
+        settings_frame = ttk.LabelFrame(export_section, text="保存設定", padding="10")
+        settings_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # 保存形式選択
+        format_frame = ttk.Frame(settings_frame)
+        format_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(format_frame, text="形式:", font=('Arial', 9, 'bold')).pack(anchor=tk.W)
+        self.export_format = tk.StringVar(value="excel")
+        
+        format_radio_frame = ttk.Frame(settings_frame)
+        format_radio_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Radiobutton(format_radio_frame, text="Excel (.xlsx)", 
+                       variable=self.export_format, value="excel").pack(anchor=tk.W, padx=10)
+        ttk.Radiobutton(format_radio_frame, text="CSV (.csv)", 
+                       variable=self.export_format, value="csv").pack(anchor=tk.W, padx=10)
+        
+        # 追加オプション
+        self.include_summary = tk.BooleanVar(value=True)
+        self.include_log = tk.BooleanVar(value=True)
+        
+        ttk.Checkbutton(settings_frame, text="処理サマリーを含める", 
+                       variable=self.include_summary).pack(anchor=tk.W)
+        ttk.Checkbutton(settings_frame, text="処理ログを含める", 
+                       variable=self.include_log).pack(anchor=tk.W)
+        
+        # ステータス表示（常にポジティブ）
+        self.export_status = ttk.Label(export_section, 
+                                      text="✅ エクスポート可能（データ読み込み後推奨）", 
+                                      foreground='green', font=('Arial', 9))
+        self.export_status.pack(pady=(10, 0))
+        
+        # その他セクション
+        other_section = ttk.LabelFrame(control_frame, text="🔧 その他", padding="10")
+        other_section.pack(fill=tk.X, pady=(0, 10))
+        
+        self.reset_button = ttk.Button(other_section, text="🔄 データリセット", 
+                                      command=self.reset_data, state='disabled')
+        self.reset_button.pack(fill=tk.X, pady=2)
+        
+        self.log_button = ttk.Button(other_section, text="📋 処理ログ表示", 
+                                    command=self.show_processing_log, state='disabled')
+        self.log_button.pack(fill=tk.X, pady=2)
+    
+    def create_data_panel(self, parent):
+        """右側のデータ表示パネルを作成"""
+        data_frame = ttk.Frame(parent)
+        data_frame.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S))
+        data_frame.columnconfigure(0, weight=1)
+        data_frame.rowconfigure(1, weight=1)
+        
+        # データ表示ヘッダー
+        data_header = ttk.Label(data_frame, text="データプレビュー", style='Heading.TLabel')
+        data_header.grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        
+        # データテーブル
+        self.create_data_table(data_frame)
+        
+        # ステータスバー
+        status_frame = ttk.Frame(data_frame)
+        status_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
+        status_frame.columnconfigure(0, weight=1)
+        
+        self.status_label = ttk.Label(status_frame, text="ファイルを選択してください")
+        self.status_label.grid(row=0, column=0, sticky=tk.W)
+        
+        # プログレスバー
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(status_frame, variable=self.progress_var, 
+                                          maximum=100, length=200)
+        self.progress_bar.grid(row=0, column=1, sticky=tk.E)
+    
+    def create_data_table(self, parent):
+        """データテーブルを作成"""
+        table_frame = ttk.Frame(parent)
+        table_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        table_frame.columnconfigure(0, weight=1)
+        table_frame.rowconfigure(0, weight=1)
+        
+        # Treeviewウィジェット
+        self.tree = ttk.Treeview(table_frame, show='tree headings', height=20)
+        self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # スクロールバー
+        v_scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        v_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.tree.configure(yscrollcommand=v_scrollbar.set)
+        
+        h_scrollbar = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
+        h_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        self.tree.configure(xscrollcommand=h_scrollbar.set)
+    
+    def load_file(self):
+        """ファイルを読み込む"""
+        file_path = filedialog.askopenfilename(
+            title="Excel/CSVファイルを選択",
+            filetypes=[
+                ("すべて対応形式", "*.xlsx;*.xls;*.csv;*.tsv;*.txt"),
+                ("Excel files", "*.xlsx *.xls"),
+                ("CSV files", "*.csv"),
+                ("TSV files", "*.tsv"),
+                ("Text files", "*.txt"),
+                ("All files", "*.*")
+            ]
+        )
+        
+        if file_path:
+            self.file_path = file_path
+            try:
+                self.load_data()
+            except Exception as e:
+                self.show_detailed_error("ファイル選択エラー", str(e))
+    
+    def load_data(self):
+        """データを読み込む"""
+        try:
+            self.update_status("ファイルを読み込み中...")
+            self.progress_var.set(10)
+            self.root.update()
+            
+            # ファイル存在確認
+            if not os.path.exists(self.file_path):
+                raise FileNotFoundError(f"ファイルが見つかりません: {self.file_path}")
+            
+            # ファイル拡張子を取得
+            file_extension = os.path.splitext(self.file_path)[1].lower()
+            self.progress_var.set(20)
+            self.root.update()
+            
+            print(f"DEBUG: ファイル読み込み開始 - {self.file_path}")
+            print(f"DEBUG: 拡張子: {file_extension}")
+            
+            # Excel形式の読み込み
+            if file_extension in ['.xlsx', '.xls']:
+                self.data = self.load_excel_file()
+            # CSV形式の読み込み  
+            elif file_extension == '.csv':
+                self.data = self.load_csv_with_multiple_encodings()
+            # TSV形式の読み込み
+            elif file_extension in ['.tsv', '.txt']:
+                self.data = self.load_csv_with_multiple_encodings(separator='\t')
+            # 不明な形式（CSV形式として試行）
+            else:
+                print(f"WARNING: 不明な拡張子 {file_extension}、CSV形式で試行")
+                self.data = self.load_csv_with_multiple_encodings()
+            
+            self.progress_var.set(70)
+            self.root.update()
+            
+            # データの基本検証
+            if self.data is None or self.data.empty:
+                raise ValueError("読み込まれたデータが空です")
+            
+            print(f"DEBUG: データ読み込み成功 - {self.data.shape[0]}行 × {self.data.shape[1]}列")
+            
+            # データの基本整理
+            self.clean_loaded_data()
+            
+            # 元データのバックアップ
+            self.original_data = self.data.copy()
+            
+            # GUI更新
+            self.on_data_loaded()
+            
+        except Exception as e:
+            print(f"ERROR: データ読み込み失敗 - {str(e)}")
+            self.show_detailed_error("ファイル読み込みエラー", str(e))
+            self.progress_var.set(0)
+    
+    def load_excel_file(self):
+        """Excel形式ファイルを読み込む"""
+        engines = ['openpyxl', 'xlrd']
+        
+        for engine in engines:
+            try:
+                print(f"DEBUG: Excel読み込み試行 - engine: {engine}")
+                
+                # 基本的なパラメータで読み込み
+                data = pd.read_excel(
+                    self.file_path, 
+                    engine=engine,
+                    na_values=['', 'NULL', 'null', 'None', 'none', 'NaN', 'nan', '#N/A', '#VALUE!'],
+                    keep_default_na=True
+                )
+                
+                print(f"SUCCESS: Excel読み込み成功 - engine: {engine}")
+                return data
+                
+            except ImportError:
+                print(f"WARNING: エンジン {engine} が利用できません")
+                continue
+            except Exception as e:
+                print(f"WARNING: エンジン {engine} で失敗: {str(e)}")
+                continue
+        
+        # 全てのエンジンで失敗した場合、pandasのデフォルトで試行
+        try:
+            print("DEBUG: デフォルトエンジンで Excel読み込み試行")
+            data = pd.read_excel(self.file_path)
+            print("SUCCESS: デフォルトエンジンで Excel読み込み成功")
+            return data
+        except Exception as e:
+            print(f"ERROR: 全てのExcelエンジンで失敗: {str(e)}")
+            raise Exception(f"Excelファイルを読み込めませんでした。\n{str(e)}\n\nCSV形式で保存し直して試してください。")
+    
+    def load_csv_with_multiple_encodings(self, separator=','):
+        """複数エンコーディングでCSV読み込みを試行"""
+        encodings = [
+            'utf-8-sig',  # BOM付きUTF-8
+            'utf-8',      # UTF-8
+            'shift_jis',  # Shift-JIS (Windows日本語)
+            'cp932',      # Windows日本語
+            'iso-2022-jp', # JIS
+            'euc-jp',     # EUC-JP
+            'latin1',     # Latin-1
+            'cp1252',     # Windows Western
+        ]
+        
+        separators = [separator, ',', '\t', ';', '|'] if separator == ',' else [separator]
+        
+        for encoding in encodings:
+            for sep in separators:
+                try:
+                    print(f"TRY: CSV読み込み (encoding: {encoding}, separator: '{sep}')")
+                    
+                    # パラメータ設定
+                    csv_params = {
+                        'encoding': encoding,
+                        'sep': sep,
+                        'na_values': ['', 'NULL', 'null', 'None', 'none', 'NaN', 'nan', '#N/A', '#VALUE!'],
+                        'keep_default_na': True,
+                        'skipinitialspace': True,
+                        'skip_blank_lines': True,
+                    }
+                    
+                    # 最初の数行で区切り文字を自動判定
+                    if sep == ',' and separator == ',':
+                        # 自動判定を試行
+                        with open(self.file_path, 'r', encoding=encoding) as f:
+                            sample = f.read(1024)
+                            if sample.count('\t') > sample.count(','):
+                                csv_params['sep'] = '\t'
+                            elif sample.count(';') > sample.count(','):
+                                csv_params['sep'] = ';'
+                    
+                    data = pd.read_csv(self.file_path, **csv_params)
+                    
+                    # データ品質チェック
+                    if not data.empty and len(data.columns) > 1:
+                        print(f"SUCCESS: CSV読み込み成功 (encoding: {encoding}, sep: '{csv_params['sep']}')")
+                        return data
+                        
+                except UnicodeDecodeError:
+                    continue
+                except Exception as e:
+                    print(f"WARNING: {encoding}/{sep} で失敗: {e}")
+                    continue
+        
+        raise Exception(f"すべてのエンコーディング・区切り文字で読み込みに失敗しました")
+    
+    def clean_loaded_data(self):
+        """読み込まれたデータの基本整理"""
+        try:
+            # 列名の重複チェック・修正
+            if self.data.columns.duplicated().any():
+                print("INFO: 重複列名を修正")
+                new_columns = []
+                seen = {}
+                for col in self.data.columns:
+                    if col in seen:
+                        seen[col] += 1
+                        new_columns.append(f"{col}_{seen[col]}")
+                    else:
+                        seen[col] = 0
+                        new_columns.append(col)
+                self.data.columns = new_columns
+            
+            # 完全に空の行・列を削除
+            initial_shape = self.data.shape
+            self.data = self.data.dropna(how='all', axis=0)  # 空行削除
+            self.data = self.data.dropna(how='all', axis=1)  # 空列削除
+            
+            if self.data.shape != initial_shape:
+                print(f"INFO: 空行・列を削除 {initial_shape} → {self.data.shape}")
+            
+            # インデックスをリセット
+            self.data = self.data.reset_index(drop=True)
+            
+        except Exception as e:
+            print(f"WARNING: データ整理中にエラー: {str(e)}")
+            # エラーが発生しても続行
+    
+    def show_detailed_error(self, title, error_message):
+        """詳細なエラーメッセージを表示"""
+        detailed_msg = f"❌ {title}\n\n"
+        detailed_msg += f"エラー詳細:\n{error_message}\n\n"
+        detailed_msg += f"解決策:\n"
+        detailed_msg += f"• ファイルが他のアプリケーションで開かれていないか確認\n"
+        detailed_msg += f"• ファイルが破損していないか確認\n"
+        detailed_msg += f"• 別の形式（Excel→CSV）で保存して試行\n"
+        detailed_msg += f"• ファイルパスに日本語や特殊文字が含まれていないか確認\n"
+        detailed_msg += f"• 必要なライブラリをインストール: pip install openpyxl xlrd\n\n"
+        detailed_msg += f"対応形式: .xlsx, .xls, .csv, .tsv, .txt"
+        
+        messagebox.showerror(title, detailed_msg)
+        self.progress_var.set(0)
+    
+    def on_data_loaded(self):
+        """データ読み込み完了後の処理"""
+        self.progress_var.set(100)
+        
+        # ファイル名表示
+        filename = os.path.basename(self.file_path)
+        self.file_label.config(text=f"📁 {filename}", foreground='black')
+        
+        # データ情報更新
+        self.update_data_info()
+        self.update_data_table()
+        
+        # ボタンを有効化（確実に実行）
+        self.update_button_states(True)
+        self.force_enable_all_export_buttons()
+        
+        self.log_action(f"ファイル読み込み完了: {filename}")
+        self.update_status(f"✅ データ読み込み完了 ({self.data.shape[0]}行 × {self.data.shape[1]}列)")
+        
+        # プログレスバーリセット
+        self.root.after(2000, lambda: self.progress_var.set(0))
+    
+    def force_enable_all_export_buttons_startup(self):
+        """プログラム起動時にエクスポートボタンを確実に有効化"""
+        try:
+            print("DEBUG: 起動時エクスポートボタン有効化")
+            
+            # メインエクスポートボタン
+            if hasattr(self, 'main_export_button'):
+                self.main_export_button.config(state='normal', bg='#4CAF50')
+            
+            # 個別エクスポートボタン
+            if hasattr(self, 'export_excel_button'):
+                self.export_excel_button.config(state='normal', bg='#2196F3')
+            if hasattr(self, 'export_csv_button'):
+                self.export_csv_button.config(state='normal', bg='#FF9800')
+            
+            # ステータス更新
+            if hasattr(self, 'export_status'):
+                self.export_status.config(text="✅ エクスポート可能（データ読み込み後推奨）", foreground='green')
+            
+            # GUI更新を強制
+            self.root.update()
+            self.root.update_idletasks()
+            
+            print("DEBUG: 起動時エクスポートボタン有効化完了")
+        except Exception as e:
+            print(f"ERROR: 起動時エクスポートボタン有効化失敗: {e}")
+
+    def force_enable_all_export_buttons(self):
+        """エクスポートボタンをすべて強制的に有効化"""
+        if self.data is not None:
+            print("DEBUG: 全エクスポートボタンを強制有効化")
+            
+            # メインエクスポートボタン
+            self.main_export_button.config(state='normal', bg='#4CAF50')
+            
+            # 個別エクスポートボタン
+            self.export_excel_button.config(state='normal', bg='#2196F3')
+            self.export_csv_button.config(state='normal', bg='#FF9800')
+            
+            # ステータス更新
+            self.export_status.config(text="✅ 保存可能", foreground='green')
+            
+            # GUI更新を強制
+            self.root.update()
+            self.root.update_idletasks()
+    
+    def reload_file(self):
+        """ファイルを再読み込み"""
+        if self.file_path:
+            self.load_data()
+    
+    def update_data_info(self):
+        """データ情報を更新"""
+        if self.data is None:
+            return
+        
+        self.data_info = {
+            'rows': len(self.data),
+            'columns': len(self.data.columns),
+            'empty_cells': self.data.isnull().sum().sum(),
+            'duplicates': self.data.duplicated().sum(),
+            'memory_usage': self.data.memory_usage(deep=True).sum()
+        }
+        
+        # 情報テキスト更新
+        info_text = f"""行数: {self.data_info['rows']:,}
+列数: {self.data_info['columns']}
+空セル数: {self.data_info['empty_cells']:,}
+重複行数: {self.data_info['duplicates']:,}
+メモリ使用量: {self.data_info['memory_usage']/1024/1024:.2f} MB
+
+列情報:"""
+        
+        for i, (col, dtype) in enumerate(self.data.dtypes.items()):
+            null_count = self.data[col].isnull().sum()
+            null_rate = (null_count / len(self.data)) * 100
+            info_text += f"\n{i+1:2d}. {col[:20]:<20} | {str(dtype):<10}"
+            if null_count > 0:
+                info_text += f" | 欠損:{null_count}({null_rate:.1f}%)"
+        
+        self.info_text.config(state='normal')
+        self.info_text.delete(1.0, tk.END)
+        self.info_text.insert(1.0, info_text)
+        self.info_text.config(state='disabled')
+    
+    def update_data_table(self, max_rows=100):
+        """データテーブルを更新"""
+        if self.data is None:
+            return
+        
+        # 既存のデータをクリア
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        # 列設定
+        columns = list(self.data.columns)
+        self.tree["columns"] = columns
+        self.tree["show"] = "headings"
+        
+        # ヘッダー設定
+        for col in columns:
+            self.tree.heading(col, text=str(col))
+            self.tree.column(col, width=120, minwidth=80)
+        
+        # データ追加（最大100行まで）
+        display_data = self.data.head(max_rows)
+        for index, row in display_data.iterrows():
+            values = []
+            for col in columns:
+                value = row[col]
+                if pd.isna(value):
+                    values.append("")
+                elif isinstance(value, float):
+                    values.append(f"{value:.2f}" if abs(value) < 1000000 else f"{value:.2e}")
+                else:
+                    values.append(str(value)[:50])  # 長すぎる値を切り詰め
+            self.tree.insert("", "end", values=values)
+        
+        # 省略表示
+        if len(self.data) > max_rows:
+            self.tree.insert("", "end", values=[f"... 他 {len(self.data) - max_rows} 行"] + [""] * (len(columns) - 1))
+    
+    def update_button_states(self, enabled=False):
+        """ボタンの有効/無効状態を更新"""
+        state = 'normal' if enabled else 'disabled'
+        buttons = [
+            self.reload_button, self.empty_rows_button, self.empty_cols_button,
+            self.duplicates_button, self.missing_button, self.missing_analysis_button,
+            self.data_diagnosis_button, self.empty_preview_button, self.text_clean_button, 
+            self.type_convert_button, self.rename_button, self.filter_button, 
+            self.reset_button, self.log_button
+        ]
+        
+        for button in buttons:
+            button.config(state=state)
+        
+        # エクスポートボタンは常に有効に保つ
+        self.main_export_button.config(state='normal', bg='#4CAF50')
+        self.export_excel_button.config(state='normal', bg='#2196F3')
+        self.export_csv_button.config(state='normal', bg='#FF9800')
+        
+        # ステータス更新
+        if self.data is not None:
+            self.export_status.config(text="✅ データ読み込み済み - 保存可能", foreground='green')
+        else:
+            self.export_status.config(text="⚠️ データ未読み込み - 保存は可能だが推奨しない", foreground='orange')
+    
+    def update_status(self, message):
+        """ステータス表示を更新"""
+        self.status_label.config(text=message)
+        self.root.update_idletasks()
+    
+    def log_action(self, action):
+        """処理ログを記録"""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = f"[{timestamp}] {action}"
+        self.processing_log.append(log_entry)
+    
+    def show_error(self, message):
+        """エラーダイアログを表示"""
+        messagebox.showerror("エラー", message)
+        self.progress_var.set(0)
+    
+    def test_data_status(self):
+        """データ状態をテスト（デバッグ用）"""
+        if self.data is None:
+            messagebox.showinfo("データ状態", 
+                "❌ データが読み込まれていません\n\n"
+                "📂 「ファイル選択」ボタンでExcel/CSVファイルを読み込んでください")
+            print("DEBUG: データなし")
+        else:
+            info = f"✅ データが読み込まれています\n\n"
+            info += f"📊 サイズ: {self.data.shape[0]:,}行 × {self.data.shape[1]}列\n"
+            info += f"📁 ファイル: {os.path.basename(self.file_path) if self.file_path else 'N/A'}\n"
+            info += f"🔧 実行した処理: {len(self.processing_log)}件\n\n"
+            info += f"ボタン状態:\n"
+            info += f"• メインボタン: {self.main_export_button['state']}\n"
+            info += f"• Excel保存: {self.export_excel_button['state']}\n"
+            info += f"• CSV保存: {self.export_csv_button['state']}\n\n"
+            
+            if self.main_export_button['state'] == 'disabled':
+                info += f"⚠️ エクスポートボタンが無効です\n"
+                info += f"「🔧 ボタン有効化」ボタンを押してください"
+            else:
+                info += f"✅ エクスポート可能です！"
+            
+            messagebox.showinfo("データ状態", info)
+            print(f"DEBUG: データあり - {self.data.shape}")
+    
+    def force_enable_export(self):
+        """エクスポートボタンを強制的に有効化"""
+        if self.data is None:
+            messagebox.showwarning("警告", 
+                "❌ データが読み込まれていません。\n\n"
+                "手順:\n"
+                "1. 📂「ファイル選択」でExcel/CSVファイルを読み込み\n"
+                "2. このボタンを再度クリック")
+            return
+        
+        # 強制的にボタンを有効化
+        self.main_export_button.config(state='normal', bg='#4CAF50')
+        self.export_excel_button.config(state='normal', bg='#2196F3')
+        self.export_csv_button.config(state='normal', bg='#FF9800')
+        self.export_status.config(text="✅ 強制有効化完了", foreground='green')
+        
+        # GUI更新
+        self.root.update()
+        self.root.update_idletasks()
+        
+        # 成功メッセージ
+        messagebox.showinfo("有効化完了", 
+            "✅ エクスポートボタンを有効化しました！\n\n"
+            "📄 メインボタン: データを保存する\n"
+            "📊 Excelボタン: 簡単Excel保存\n"
+            "📄 CSVボタン: 簡単CSV保存\n\n"
+            "すべてのボタンが使用可能になりました。")
+        
+        print("DEBUG: エクスポートボタンを強制有効化しました")
+    
+    # ===== 高度な文字列処理メソッド =====
+    def advanced_string_cleaning(self, series):
+        """より高度な文字列クリーニング（Excel特有の問題対応）"""
+        try:
+            cleaned = series.copy()
+            
+            for idx in cleaned.index:
+                val = cleaned.loc[idx]
+                if pd.notna(val):
+                    str_val = str(val)
+                    
+                    # より包括的な空文字列パターンをチェック
+                    patterns_to_check = [
+                        '',                    # 空文字列
+                        ' ',                   # 半角スペース
+                        '　',                  # 全角スペース
+                        '\t',                  # タブ
+                        '\n',                  # 改行
+                        '\r',                  # キャリッジリターン
+                        '\u00A0',             # ノンブレーキングスペース
+                        '\u2000',             # ENクワッド
+                        '\u2001',             # EMクワッド
+                        '\u2002',             # ENスペース
+                        '\u2003',             # EMスペース
+                        '\u2004',             # 1/3EMスペース
+                        '\u2005',             # 1/4EMスペース
+                        '\u2006',             # 1/6EMスペース
+                        '\u2007',             # 数字スペース
+                        '\u2008',             # 句読点スペース
+                        '\u2009',             # 細いスペース
+                        '\u200A',             # 極細スペース
+                        '\u200B',             # ゼロ幅スペース
+                        '\u200C',             # ゼロ幅非結合子
+                        '\u200D',             # ゼロ幅結合子
+                        '\u202F',             # 狭いノンブレーキングスペース
+                        '\u205F',             # 中程度の数学スペース
+                        '\u3000',             # 表意文字スペース
+                        'nan', 'NaN', 'null', 'NULL', 'None', 'NONE',
+                        '#N/A', '#REF!', '#VALUE!', '#DIV/0!', '#NAME?', '#NUM!', '#NULL!'
+                    ]
+                    
+                    # 文字列を正規化してチェック
+                    normalized_val = str_val.strip()
+                    
+                    # 空文字列パターンマッチ
+                    if (normalized_val in patterns_to_check or 
+                        not normalized_val or 
+                        normalized_val.isspace() or
+                        len(normalized_val.replace(' ', '').replace('　', '').replace('\t', '').replace('\n', '').replace('\r', '')) == 0):
+                        cleaned.loc[idx] = np.nan
+                    
+                    # 数式エラーパターン
+                    elif any(error in normalized_val for error in ['#N/A', '#REF!', '#VALUE!', '#DIV/0!', '#NAME?', '#NUM!', '#NULL!']):
+                        cleaned.loc[idx] = np.nan
+            
+            return cleaned
+        except Exception as e:
+            print(f"WARNING: 高度文字列クリーニングエラー: {e}")
+            return series
+    
+    def detect_empty_rows_advanced(self):
+        """高度な空行検出"""
+        try:
+            empty_rows = []
+            
+            for idx in self.data.index:
+                row_data = self.data.loc[idx]
+                is_empty = True
+                
+                for col in self.data.columns:
+                    val = row_data[col]
+                    
+                    # NaNチェック
+                    if pd.notna(val):
+                        # 数値の場合
+                        if isinstance(val, (int, float)):
+                            if not (np.isnan(val) if isinstance(val, float) else False):
+                                is_empty = False
+                                break
+                        # 文字列の場合
+                        else:
+                            str_val = str(val).strip()
+                            # より厳密な空文字列チェック
+                            if (str_val and 
+                                str_val not in ['', 'nan', 'NaN', 'null', 'NULL', 'None'] and
+                                not str_val.isspace() and
+                                not all(c in ' 　\t\n\r\u00A0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u200C\u200D\u202F\u205F\u3000' for c in str_val)):
+                                is_empty = False
+                                break
+                
+                if is_empty:
+                    empty_rows.append(idx)
+            
+            return empty_rows
+        except Exception as e:
+            print(f"ERROR: 高度空行検出エラー: {e}")
+            return []
+    
+    def detect_empty_columns_advanced(self):
+        """高度な空列検出"""
+        try:
+            empty_columns = []
+            
+            for col in self.data.columns:
+                col_data = self.data[col]
+                is_empty = True
+                
+                for val in col_data:
+                    # NaNチェック
+                    if pd.notna(val):
+                        # 数値の場合
+                        if isinstance(val, (int, float)):
+                            if not (np.isnan(val) if isinstance(val, float) else False):
+                                is_empty = False
+                                break
+                        # 文字列の場合
+                        else:
+                            str_val = str(val).strip()
+                            # より厳密な空文字列チェック
+                            if (str_val and 
+                                str_val not in ['', 'nan', 'NaN', 'null', 'NULL', 'None'] and
+                                not str_val.isspace() and
+                                not all(c in ' 　\t\n\r\u00A0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u200C\u200D\u202F\u205F\u3000' for c in str_val) and
+                                not any(error in str_val for error in ['#N/A', '#REF!', '#VALUE!', '#DIV/0!', '#NAME?', '#NUM!', '#NULL!'])):
+                                is_empty = False
+                                break
+                
+                if is_empty:
+                    empty_columns.append(col)
+            
+            return empty_columns
+        except Exception as e:
+            print(f"ERROR: 高度空列検出エラー: {e}")
+            return []
+    
+    # ===== データ処理メソッド =====
+    def remove_empty_rows(self):
+        """空行を削除（大幅改善版）"""
+        if self.data is None:
+            messagebox.showwarning("データなし", "データが読み込まれていません。")
+            return
+        
+        try:
+            initial_rows = len(self.data)
+            initial_cols = len(self.data.columns)
+            
+            print(f"DEBUG: 高度空行削除開始 - 元データ: {initial_rows}行 × {initial_cols}列")
+            
+            # 高度な空行検出を使用
+            empty_row_indices = self.detect_empty_rows_advanced()
+            
+            print(f"DEBUG: 検出された空行インデックス: {empty_row_indices[:10]}{'...' if len(empty_row_indices) > 10 else ''}")
+            
+            # 空行を削除
+            if empty_row_indices:
+                self.data = self.data.drop(empty_row_indices)
+                self.data = self.data.reset_index(drop=True)
+            
+            final_rows = len(self.data)
+            removed_rows = initial_rows - final_rows
+            
+            print(f"DEBUG: 高度空行削除完了 - 最終: {final_rows}行")
+            
+            # GUI更新
+            self.update_data_info()
+            self.update_data_table()
+            
+            # ログ記録
+            self.log_action(f"高度空行削除: {removed_rows}行削除 ({initial_rows} → {final_rows})")
+            
+            # 結果表示
+            if removed_rows > 0:
+                self.update_status(f"✅ {removed_rows}行の空行を削除しました")
+                
+                result_msg = f"🗑️ 高度空行削除が完了しました！\n\n"
+                result_msg += f"📊 処理前: {initial_rows:,} 行\n"
+                result_msg += f"📊 処理後: {final_rows:,} 行\n"
+                result_msg += f"🔥 削除数: {removed_rows:,} 行\n\n"
+                result_msg += f"検出パターン:\n"
+                result_msg += f"• 完全にNaNの行\n"
+                result_msg += f"• 空文字列・スペース・タブのみの行\n"
+                result_msg += f"• 全角スペース・特殊空白文字の行\n"
+                result_msg += f"• Excelエラー値（#N/A、#REF!等）の行\n"
+                result_msg += f"• ゼロ幅文字・非表示文字の行"
+                
+                messagebox.showinfo("空行削除完了", result_msg)
+            else:
+                self.update_status("ℹ️ 削除対象の空行はありませんでした")
+                messagebox.showinfo("結果", 
+                    "✅ 削除対象の空行はありませんでした。\n\n"
+                    "データは既にクリーンな状態です。\n\n"
+                    "検出対象: NaN、空文字列、スペース類、\n"
+                    "全角スペース、特殊文字、Excelエラー値")
+            
+        except Exception as e:
+            error_msg = f"空行削除エラー: {str(e)}"
+            print(f"ERROR: {error_msg}")
+            self.show_error(error_msg)
+    
+    def remove_empty_columns(self):
+        """空列を削除（大幅改善版）"""
+        if self.data is None:
+            messagebox.showwarning("データなし", "データが読み込まれていません。")
+            return
+        
+        try:
+            initial_rows = len(self.data)
+            initial_cols = len(self.data.columns)
+            
+            print(f"DEBUG: 高度空列削除開始 - 元データ: {initial_rows}行 × {initial_cols}列")
+            
+            # 削除前の列名を記録
+            original_columns = list(self.data.columns)
+            
+            # 高度な空列検出を使用
+            empty_columns = self.detect_empty_columns_advanced()
+            
+            print(f"DEBUG: 検出された空列: {empty_columns}")
+            
+            # 空列を削除
+            if empty_columns:
+                self.data = self.data.drop(columns=empty_columns)
+            
+            final_cols = len(self.data.columns)
+            removed_cols = initial_cols - final_cols
+            
+            print(f"DEBUG: 高度空列削除完了 - 最終: {len(self.data)}行 × {final_cols}列")
+            
+            # GUI更新
+            self.update_data_info()
+            self.update_data_table()
+            
+            # ログ記録
+            if removed_cols > 0:
+                self.log_action(f"高度空列削除: {removed_cols}列削除 ({', '.join(empty_columns)})")
+            
+            # 結果表示
+            if removed_cols > 0:
+                self.update_status(f"✅ {removed_cols}列の空列を削除しました")
+                
+                result_msg = f"🗑️ 高度空列削除が完了しました！\n\n"
+                result_msg += f"📊 処理前: {initial_cols} 列\n"
+                result_msg += f"📊 処理後: {final_cols} 列\n"
+                result_msg += f"🔥 削除数: {removed_cols} 列\n\n"
+                result_msg += f"削除された列:\n"
+                
+                for i, col in enumerate(empty_columns[:5]):
+                    result_msg += f"• {col}\n"
+                if len(empty_columns) > 5:
+                    result_msg += f"• ... 他 {len(empty_columns) - 5} 列\n"
+                
+                result_msg += f"\n検出パターン:\n"
+                result_msg += f"• 完全にNaNの列\n"
+                result_msg += f"• 空文字列・スペース・タブのみの列\n"
+                result_msg += f"• 全角スペース・特殊空白文字の列\n"
+                result_msg += f"• Excelエラー値のみの列\n"
+                result_msg += f"• ゼロ幅文字・非表示文字の列"
+                
+                messagebox.showinfo("空列削除完了", result_msg)
+            else:
+                self.update_status("ℹ️ 削除対象の空列はありませんでした")
+                messagebox.showinfo("結果", 
+                    "✅ 削除対象の空列はありませんでした。\n\n"
+                    "データは既にクリーンな状態です。\n\n"
+                    "検出対象: NaN、空文字列、スペース類、\n"
+                    "全角スペース、特殊文字、Excelエラー値")
+            
+        except Exception as e:
+            error_msg = f"空列削除エラー: {str(e)}"
+            print(f"ERROR: {error_msg}")
+            self.show_error(error_msg)
+    
+    def remove_duplicates(self):
+        """重複行を削除"""
+        if self.data is None:
+            return
+        
+        try:
+            initial_rows = len(self.data)
+            self.data = self.data.drop_duplicates()
+            removed_rows = initial_rows - len(self.data)
+            
+            self.update_data_info()
+            self.update_data_table()
+            
+            self.log_action(f"重複行削除: {removed_rows}行削除")
+            self.update_status(f"✅ {removed_rows}行の重複を削除しました")
+            
+        except Exception as e:
+            self.show_error(f"重複行削除エラー: {str(e)}")
+    
+    def clean_text_data(self):
+        """テキストデータをクリーニング"""
+        if self.data is None:
+            return
+        
+        try:
+            text_columns = self.data.select_dtypes(include=['object']).columns
+            processed_cols = 0
+            
+            for col in text_columns:
+                # 前後の空白を削除
+                self.data[col] = self.data[col].astype(str).str.strip()
+                # 連続する空白を1つに
+                self.data[col] = self.data[col].str.replace(r'\s+', ' ', regex=True)
+                processed_cols += 1
+            
+            self.update_data_info()
+            self.update_data_table()
+            
+            self.log_action(f"テキストクリーニング: {processed_cols}列処理")
+            self.update_status(f"✅ {processed_cols}列のテキストを整形しました")
+            
+        except Exception as e:
+            self.show_error(f"テキストクリーニングエラー: {str(e)}")
+    
+    def convert_data_types(self):
+        """データ型を変換"""
+        if self.data is None:
+            return
+        
+        try:
+            converted_cols = 0
+            
+            for col in self.data.columns:
+                if self.data[col].dtype == 'object':
+                    # 数値変換を試行
+                    numeric_series = pd.to_numeric(self.data[col], errors='coerce')
+                    if numeric_series.notna().sum() / len(self.data[col]) > 0.8:
+                        self.data[col] = numeric_series
+                        converted_cols += 1
+                    else:
+                        # 日付変換を試行
+                        try:
+                            date_series = pd.to_datetime(self.data[col], errors='coerce')
+                            if date_series.notna().sum() / len(self.data[col]) > 0.5:
+                                self.data[col] = date_series
+                                converted_cols += 1
+                        except:
+                            pass
+            
+            self.update_data_info()
+            self.update_data_table()
+            
+            self.log_action(f"データ型変換: {converted_cols}列変換")
+            self.update_status(f"✅ {converted_cols}列のデータ型を変換しました")
+            
+        except Exception as e:
+            self.show_error(f"データ型変換エラー: {str(e)}")
+    
+    def fill_missing_dialog(self):
+        """欠損値処理ダイアログを表示"""
+        if self.data is None:
+            return
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("欠損値処理")
+        dialog.geometry("450x350")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # 処理方法選択
+        ttk.Label(dialog, text="処理方法を選択:", font=('Arial', 11, 'bold')).pack(pady=10)
+        
+        method_var = tk.StringVar(value='remove')
+        methods = [
+            ('remove', '🗑️ 空行を削除'),
+            ('mean', '📊 平均値で埋める（数値列のみ）'),
+            ('median', '📈 中央値で埋める（数値列のみ）'),
+            ('forward', '⬆️ 前の値で埋める'),
+            ('backward', '⬇️ 次の値で埋める'),
+            ('zero', '0️⃣ ゼロで埋める'),
+            ('custom', '✏️ カスタム値で埋める')
+        ]
+        
+        # ラジオボタンをフレームに配置
+        radio_frame = ttk.Frame(dialog)
+        radio_frame.pack(pady=10, padx=20, fill=tk.X)
+        
+        for value, text in methods:
+            ttk.Radiobutton(radio_frame, text=text, variable=method_var, value=value).pack(anchor=tk.W, pady=2)
+        
+        # 情報表示
+        info_frame = ttk.LabelFrame(dialog, text="📊 データ情報", padding="10")
+        info_frame.pack(pady=10, padx=20, fill=tk.X)
+        
+        # 数値列の情報を表示
+        numeric_cols = self.data.select_dtypes(include=[np.number]).columns.tolist()
+        text_cols = self.data.select_dtypes(include=['object']).columns.tolist()
+        total_nulls = self.data.isnull().sum().sum()
+        
+        info_text = f"📈 数値列: {len(numeric_cols)}列 (平均値/中央値対象)\n"
+        info_text += f"📝 文字列列: {len(text_cols)}列\n"
+        info_text += f"🔍 総欠損値: {total_nulls:,}個"
+        
+        ttk.Label(info_frame, text=info_text, font=('Arial', 9)).pack()
+        
+        # カスタム値入力
+        custom_frame = ttk.LabelFrame(dialog, text="カスタム設定", padding="10")
+        custom_frame.pack(pady=10, padx=20, fill=tk.X)
+        
+        ttk.Label(custom_frame, text="カスタム値:").pack(side=tk.LEFT)
+        custom_var = tk.StringVar()
+        custom_entry = ttk.Entry(custom_frame, textvariable=custom_var, width=15)
+        custom_entry.pack(side=tk.LEFT, padx=5)
+        
+        # ボタン
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=20)
+        
+        def apply_fill():
+            try:
+                method = method_var.get()
+                initial_nulls = self.data.isnull().sum().sum()
+                
+                if method == 'remove':
+                    self.data = self.data.dropna()
+                    
+                elif method == 'mean':
+                    # 平均値で埋める（数値列のみ）
+                    numeric_columns = self.data.select_dtypes(include=[np.number]).columns
+                    filled_cols = 0
+                    for col in numeric_columns:
+                        if self.data[col].isnull().any():
+                            mean_value = self.data[col].mean()
+                            self.data[col] = self.data[col].fillna(mean_value)
+                            filled_cols += 1
+                    
+                    if filled_cols == 0:
+                        messagebox.showinfo("情報", "数値列に欠損値がありませんでした")
+                        dialog.destroy()
+                        return
+                        
+                elif method == 'median':
+                    # 中央値で埋める（数値列のみ）
+                    numeric_columns = self.data.select_dtypes(include=[np.number]).columns
+                    filled_cols = 0
+                    for col in numeric_columns:
+                        if self.data[col].isnull().any():
+                            median_value = self.data[col].median()
+                            self.data[col] = self.data[col].fillna(median_value)
+                            filled_cols += 1
+                    
+                    if filled_cols == 0:
+                        messagebox.showinfo("情報", "数値列に欠損値がありませんでした")
+                        dialog.destroy()
+                        return
+                        
+                elif method == 'forward':
+                    self.data = self.data.fillna(method='ffill')
+                    
+                elif method == 'backward':
+                    self.data = self.data.fillna(method='bfill')
+                    
+                elif method == 'zero':
+                    self.data = self.data.fillna(0)
+                    
+                elif method == 'custom':
+                    custom_value = custom_var.get()
+                    if not custom_value:
+                        messagebox.showwarning("警告", "カスタム値を入力してください")
+                        return
+                    
+                    # 数値として認識可能かチェック
+                    try:
+                        float(custom_value)
+                        # 数値として使用
+                        self.data = self.data.fillna(pd.to_numeric(custom_value, errors='ignore'))
+                    except ValueError:
+                        # 文字列として使用
+                        self.data = self.data.fillna(custom_value)
+                
+                final_nulls = self.data.isnull().sum().sum()
+                processed_count = initial_nulls - final_nulls
+                
+                self.update_data_info()
+                self.update_data_table()
+                
+                method_names = {
+                    'remove': '空行削除',
+                    'mean': '平均値補完',
+                    'median': '中央値補完', 
+                    'forward': '前方値補完',
+                    'backward': '後方値補完',
+                    'zero': 'ゼロ補完',
+                    'custom': 'カスタム値補完'
+                }
+                
+                self.log_action(f"欠損値処理: {processed_count}個処理 (方法: {method_names.get(method, method)})")
+                self.update_status(f"✅ {processed_count}個の欠損値を処理しました ({method_names.get(method, method)})")
+                
+                # 成功メッセージ
+                success_msg = f"🎉 欠損値処理が完了しました！\n\n"
+                success_msg += f"📊 処理方法: {method_names.get(method, method)}\n"
+                success_msg += f"🔧 処理数: {processed_count:,}個\n"
+                success_msg += f"📉 残り欠損値: {final_nulls:,}個"
+                
+                if method in ['mean', 'median'] and processed_count > 0:
+                    success_msg += f"\n\n💡 数値列のみが対象です。文字列列の欠損値は別途処理してください。"
+                
+                messagebox.showinfo("処理完了", success_msg)
+                
+                dialog.destroy()
+                
+            except Exception as e:
+                error_msg = f"欠損値処理エラー: {str(e)}\n\n"
+                
+                if "mean" in str(e) or "median" in str(e):
+                    error_msg += "💡 数値列に有効なデータが不足している可能性があります。"
+                    
+                messagebox.showerror("エラー", error_msg)
+        
+        ttk.Button(button_frame, text="✅ 適用", command=apply_fill, style='Action.TButton').pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="❌ キャンセル", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+    
+    def show_missing_analysis(self):
+        """欠損値分析ウィンドウを表示"""
+        if self.data is None:
+            return
+        
+        # 分析ウィンドウ作成
+        analysis_window = tk.Toplevel(self.root)
+        analysis_window.title("📊 欠損値分析レポート")
+        analysis_window.geometry("800x600")
+        analysis_window.transient(self.root)
+        
+        # スクロール可能なテキストエリア
+        text_widget = scrolledtext.ScrolledText(analysis_window, wrap=tk.WORD, 
+                                               font=('Consolas', 10), bg='#f8f8f8')
+        text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # 分析結果を生成
+        analysis_report = self.generate_missing_analysis_report()
+        
+        # レポートをテキストエリアに挿入
+        text_widget.insert(tk.END, analysis_report)
+        text_widget.config(state='disabled')
+        
+        # 閉じるボタン
+        close_button = ttk.Button(analysis_window, text="閉じる", 
+                                 command=analysis_window.destroy)
+        close_button.pack(pady=10)
+    
+    def generate_missing_analysis_report(self):
+        """欠損値分析レポートを生成"""
+        report = "📊 欠損値分析レポート\n"
+        report += "=" * 60 + "\n\n"
+        
+        # 基本統計
+        total_cells = self.data.shape[0] * self.data.shape[1]
+        total_missing = self.data.isnull().sum().sum()
+        missing_percentage = (total_missing / total_cells) * 100
+        
+        report += f"📈 全体統計:\n"
+        report += f"  • データサイズ: {self.data.shape[0]:,} 行 × {self.data.shape[1]} 列\n"
+        report += f"  • 総セル数: {total_cells:,} セル\n"
+        report += f"  • 欠損セル数: {total_missing:,} セル ({missing_percentage:.2f}%)\n"
+        report += f"  • 完全なデータ行: {self.data.dropna().shape[0]:,} 行\n\n"
+        
+        # 列別欠損状況
+        missing_by_column = self.data.isnull().sum().sort_values(ascending=False)
+        missing_cols = missing_by_column[missing_by_column > 0]
+        
+        if len(missing_cols) > 0:
+            report += f"📋 列別欠損状況 (欠損値が多い順):\n"
+            report += "-" * 50 + "\n"
+            
+            for col, missing_count in missing_cols.items():
+                missing_rate = (missing_count / len(self.data)) * 100
+                data_type = str(self.data[col].dtype)
+                
+                report += f"  {col[:30]:<30} | {missing_count:>6} ({missing_rate:>5.1f}%) | {data_type}\n"
+            
+            report += "\n"
+        else:
+            report += f"✅ 欠損値はありません！\n\n"
+        
+        # 数値列の統計情報
+        numeric_cols = self.data.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) > 0:
+            report += f"🔢 数値列の統計情報:\n"
+            report += "-" * 70 + "\n"
+            report += f"{'列名':<25} | {'欠損数':<6} | {'平均値':<10} | {'中央値':<10} | {'標準偏差':<10}\n"
+            report += "-" * 70 + "\n"
+            
+            for col in numeric_cols:
+                missing_count = self.data[col].isnull().sum()
+                if missing_count > 0 or True:  # すべての数値列を表示
+                    mean_val = self.data[col].mean()
+                    median_val = self.data[col].median()
+                    std_val = self.data[col].std()
+                    
+                    report += f"{col[:24]:<25} | {missing_count:<6} | {mean_val:<10.2f} | {median_val:<10.2f} | {std_val:<10.2f}\n"
+            
+            report += "\n"
+        
+        # 欠損パターン分析
+        if total_missing > 0:
+            report += f"🔍 欠損パターン分析:\n"
+            report += "-" * 40 + "\n"
+            
+            # 完全欠損行
+            completely_missing_rows = self.data.isnull().all(axis=1).sum()
+            if completely_missing_rows > 0:
+                report += f"  • 完全欠損行: {completely_missing_rows} 行\n"
+            
+            # 部分欠損行
+            partially_missing_rows = (self.data.isnull().any(axis=1) & ~self.data.isnull().all(axis=1)).sum()
+            if partially_missing_rows > 0:
+                report += f"  • 部分欠損行: {partially_missing_rows} 行\n"
+            
+            # 完全欠損列
+            completely_missing_cols = self.data.isnull().all(axis=0).sum()
+            if completely_missing_cols > 0:
+                report += f"  • 完全欠損列: {completely_missing_cols} 列\n"
+            
+            report += "\n"
+        
+        # 推奨処理方法
+        report += f"💡 推奨処理方法:\n"
+        report += "-" * 30 + "\n"
+        
+        if missing_percentage < 5:
+            report += f"  ✅ 欠損率が低い({missing_percentage:.1f}%) → 行削除を推奨\n"
+        elif missing_percentage < 15:
+            report += f"  ⚠️  欠損率が中程度({missing_percentage:.1f}%) → 平均値/中央値補完を推奨\n"
+        else:
+            report += f"  ⚠️  欠損率が高い({missing_percentage:.1f}%) → 慎重な検討が必要\n"
+        
+        # 数値列の処理推奨
+        if len(numeric_cols) > 0:
+            report += f"\n📊 数値列の処理推奨:\n"
+            for col in numeric_cols:
+                missing_count = self.data[col].isnull().sum()
+                if missing_count > 0:
+                    missing_rate = (missing_count / len(self.data)) * 100
+                    std_val = self.data[col].std()
+                    mean_val = self.data[col].mean()
+                    
+                    if missing_rate < 10:
+                        if std_val / mean_val < 0.5:  # 変動係数が小さい
+                            report += f"  • {col}: 平均値補完推奨 (安定したデータ)\n"
+                        else:
+                            report += f"  • {col}: 中央値補完推奨 (ばらつきが大きい)\n"
+                    else:
+                        report += f"  • {col}: 慎重な検討が必要 (欠損率{missing_rate:.1f}%)\n"
+        
+        report += "\n" + "=" * 60 + "\n"
+        report += f"📅 分析実行日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        
+        return report
+    
+    def show_data_diagnosis(self):
+        """データ診断ウィンドウを表示"""
+        if self.data is None:
+            return
+        
+        # 診断ウィンドウ作成
+        diagnosis_window = tk.Toplevel(self.root)
+        diagnosis_window.title("🔍 データ診断レポート")
+        diagnosis_window.geometry("900x700")
+        diagnosis_window.transient(self.root)
+        
+        # スクロール可能なテキストエリア
+        text_widget = scrolledtext.ScrolledText(diagnosis_window, wrap=tk.WORD, 
+                                               font=('Consolas', 9), bg='#f8f8f8')
+        text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # 診断結果を生成
+        diagnosis_report = self.generate_data_diagnosis_report()
+        
+        # レポートをテキストエリアに挿入
+        text_widget.insert(tk.END, diagnosis_report)
+        text_widget.config(state='disabled')
+        
+        # ボタンフレーム
+        button_frame = ttk.Frame(diagnosis_window)
+        button_frame.pack(pady=10)
+        
+        # 自動クリーニングボタン
+        auto_clean_button = ttk.Button(button_frame, text="🧹 高度自動クリーニング実行", 
+                                      command=lambda: self.auto_clean_data(diagnosis_window))
+        auto_clean_button.pack(side=tk.LEFT, padx=5)
+        
+        # 閉じるボタン
+        close_button = ttk.Button(button_frame, text="閉じる", 
+                                 command=diagnosis_window.destroy)
+        close_button.pack(side=tk.LEFT, padx=5)
+    
+    def generate_data_diagnosis_report(self):
+        """データ診断レポートを生成"""
+        report = "🔍 データ診断レポート\n"
+        report += "=" * 80 + "\n\n"
+        
+        # 基本情報
+        report += f"📊 基本情報:\n"
+        report += f"  • データサイズ: {self.data.shape[0]:,} 行 × {self.data.shape[1]} 列\n"
+        report += f"  • データ型: 数値列{len(self.data.select_dtypes(include=[np.number]).columns)}個, "
+        report += f"文字列列{len(self.data.select_dtypes(include=['object']).columns)}個, "
+        report += f"日付列{len(self.data.select_dtypes(include=['datetime']).columns)}個\n\n"
+        
+        # 空行診断（高度版）
+        report += f"🗑️ 空行診断（高度検出）:\n"
+        report += "-" * 50 + "\n"
+        
+        empty_row_indices = self.detect_empty_rows_advanced()
+        report += f"  • 高度検出による空行: {len(empty_row_indices)} 行\n"
+        
+        if empty_row_indices:
+            removal_percentage = (len(empty_row_indices) / len(self.data)) * 100
+            report += f"  • 削除率: {removal_percentage:.2f}%\n"
+        else:
+            report += f"  • ✅ 削除対象の空行はありません\n"
+        
+        report += "\n"
+        
+        # 空列診断（高度版）
+        report += f"🗂️ 空列診断（高度検出）:\n"
+        report += "-" * 60 + "\n"
+        
+        empty_columns = self.detect_empty_columns_advanced()
+        
+        if empty_columns:
+            report += f"  削除対象の空列 ({len(empty_columns)} 列):\n"
+            for col in empty_columns:
+                col_data = self.data[col]
+                data_type = str(col_data.dtype)
+                report += f"    • {col[:30]:<30} | {data_type:<10}\n"
+        else:
+            report += f"  ✅ 削除対象の空列はありません\n"
+        
+        report += "\n"
+        
+        # 重複行診断
+        duplicates = self.data.duplicated().sum()
+        report += f"👥 重複診断:\n"
+        report += f"  • 重複行数: {duplicates:,} 行\n"
+        if duplicates > 0:
+            duplicate_percentage = (duplicates / len(self.data)) * 100
+            report += f"  • 重複率: {duplicate_percentage:.2f}%\n"
+        report += "\n"
+        
+        # 欠損値診断
+        total_missing = self.data.isnull().sum().sum()
+        report += f"❓ 欠損値診断:\n"
+        report += f"  • 総欠損値: {total_missing:,} 個\n"
+        if total_missing > 0:
+            missing_percentage = (total_missing / (self.data.shape[0] * self.data.shape[1])) * 100
+            report += f"  • 欠損率: {missing_percentage:.2f}%\n"
+            
+            # 欠損値が多い列トップ5
+            missing_by_col = self.data.isnull().sum().sort_values(ascending=False)
+            top_missing = missing_by_col.head(5)
+            top_missing = top_missing[top_missing > 0]
+            
+            if len(top_missing) > 0:
+                report += f"  • 欠損値上位列:\n"
+                for col, missing_count in top_missing.items():
+                    missing_rate = (missing_count / len(self.data)) * 100
+                    report += f"    - {col[:25]:<25} | {missing_count:>6} 個 ({missing_rate:>5.1f}%)\n"
+        
+        report += "\n"
+        
+        # データ品質スコア
+        report += f"⭐ データ品質スコア:\n"
+        report += "-" * 30 + "\n"
+        
+        # スコア計算（100点満点）
+        quality_score = 100
+        
+        # 空行・空列の影響
+        if empty_row_indices:
+            empty_penalty = min(20, (len(empty_row_indices) / len(self.data)) * 100)
+            quality_score -= empty_penalty
+            
+        # 重複の影響  
+        if duplicates > 0:
+            duplicate_penalty = min(15, (duplicates / len(self.data)) * 50)
+            quality_score -= duplicate_penalty
+            
+        # 欠損値の影響
+        if total_missing > 0:
+            missing_percentage = (total_missing / (self.data.shape[0] * self.data.shape[1])) * 100
+            missing_penalty = min(25, missing_percentage)
+            quality_score -= missing_penalty
+        
+        quality_score = max(0, quality_score)
+        
+        if quality_score >= 90:
+            quality_status = "優秀 ✅"
+        elif quality_score >= 70:
+            quality_status = "良好 👍"
+        elif quality_score >= 50:
+            quality_status = "普通 ⚠️"
+        else:
+            quality_status = "要改善 🔴"
+        
+        report += f"  • 総合スコア: {quality_score:.1f}/100 ({quality_status})\n\n"
+        
+        # 推奨アクション（更新版）
+        report += f"💡 推奨クリーニングアクション（高度検出）:\n"
+        report += "-" * 40 + "\n"
+        
+        actions = []
+        if empty_row_indices:
+            actions.append(f"1. 高度空行削除: {len(empty_row_indices)} 行を削除")
+        if empty_columns:
+            actions.append(f"2. 高度空列削除: {len(empty_columns)} 列を削除")
+        if duplicates > 0:
+            actions.append(f"3. 重複削除: {duplicates} 行を削除")
+        if total_missing > 0:
+            actions.append(f"4. 欠損値処理: {total_missing} 個を処理（平均値/削除）")
+        
+        if actions:
+            for action in actions:
+                report += f"  {action}\n"
+            report += f"\n  👁️ 「空行列プレビュー」で詳細確認可能\n"
+            report += f"  🧹 「自動クリーニング実行」ボタンで一括処理可能\n"
+        else:
+            report += f"  ✅ クリーニング不要です！データは既に整理されています。\n"
+        
+        report += "\n" + "=" * 80 + "\n"
+        report += f"📅 診断実行日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        
+        return report
+    
+    def show_empty_preview(self):
+        """空行列プレビューウィンドウを表示"""
+        if self.data is None:
+            return
+        
+        # プレビューウィンドウ作成
+        preview_window = tk.Toplevel(self.root)
+        preview_window.title("👁️ 空行列プレビュー")
+        preview_window.geometry("1000x700")
+        preview_window.transient(self.root)
+        
+        # ノートブックタブ作成
+        notebook = ttk.Notebook(preview_window)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # 空行タブ
+        empty_rows_frame = ttk.Frame(notebook)
+        notebook.add(empty_rows_frame, text="空行プレビュー")
+        
+        self.create_empty_rows_preview(empty_rows_frame)
+        
+        # 空列タブ
+        empty_cols_frame = ttk.Frame(notebook)
+        notebook.add(empty_cols_frame, text="空列プレビュー")
+        
+        self.create_empty_columns_preview(empty_cols_frame)
+        
+        # 詳細分析タブ
+        analysis_frame = ttk.Frame(notebook)
+        notebook.add(analysis_frame, text="詳細分析")
+        
+        self.create_detailed_analysis(analysis_frame)
+        
+        # ボタンフレーム
+        button_frame = ttk.Frame(preview_window)
+        button_frame.pack(pady=10)
+        
+        # 実行ボタン
+        execute_frame = ttk.Frame(button_frame)
+        execute_frame.pack(side=tk.LEFT, padx=10)
+        
+        ttk.Button(execute_frame, text="🗑️ 空行を削除", 
+                  command=lambda: [self.remove_empty_rows(), preview_window.destroy()]).pack(side=tk.LEFT, padx=5)
+        ttk.Button(execute_frame, text="🗂️ 空列を削除", 
+                  command=lambda: [self.remove_empty_columns(), preview_window.destroy()]).pack(side=tk.LEFT, padx=5)
+        ttk.Button(execute_frame, text="🧹 両方削除", 
+                  command=lambda: [self.remove_empty_rows(), self.remove_empty_columns(), preview_window.destroy()]).pack(side=tk.LEFT, padx=5)
+        
+        # 閉じるボタン
+        ttk.Button(button_frame, text="閉じる", command=preview_window.destroy).pack(side=tk.RIGHT, padx=10)
+    
+    def create_empty_rows_preview(self, parent):
+        """空行プレビューを作成"""
+        # ヘッダー
+        header_frame = ttk.Frame(parent)
+        header_frame.pack(fill=tk.X, pady=10)
+        
+        ttk.Label(header_frame, text="🗑️ 削除対象の空行", font=('Arial', 12, 'bold')).pack()
+        
+        # 検出処理
+        empty_row_indices = self.detect_empty_rows_advanced()
+        
+        if not empty_row_indices:
+            ttk.Label(parent, text="✅ 削除対象の空行はありません", 
+                     font=('Arial', 11), foreground='green').pack(pady=20)
+            return
+        
+        # 統計情報
+        stats_frame = ttk.Frame(parent)
+        stats_frame.pack(fill=tk.X, pady=10)
+        
+        stats_text = f"検出された空行: {len(empty_row_indices)}行 / {len(self.data)}行中 ({len(empty_row_indices)/len(self.data)*100:.1f}%)"
+        ttk.Label(stats_frame, text=stats_text, font=('Arial', 10)).pack()
+        
+        # 空行リスト表示
+        list_frame = ttk.Frame(parent)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        
+        # Treeview作成
+        columns = ['行番号', '空の理由', 'サンプルデータ']
+        tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
+        
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=150)
+        
+        # スクロールバー
+        scrollbar_y = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=tree.yview)
+        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
+        tree.configure(yscrollcommand=scrollbar_y.set)
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # 空行データを表示
+        for idx in empty_row_indices[:100]:  # 最初の100行まで表示
+            row_data = self.data.iloc[idx]
+            
+            # 空の理由を分析
+            reason = self.analyze_empty_reason_row(row_data)
+            
+            # サンプルデータ（最初の3列）
+            sample_data = []
+            for col in self.data.columns[:3]:
+                val = row_data[col]
+                if pd.isna(val):
+                    sample_data.append("[NaN]")
+                else:
+                    val_str = str(val)[:15]
+                    if not val_str.strip():
+                        sample_data.append("[空文字]")
+                    else:
+                        sample_data.append(f"'{val_str}'")
+            
+            sample_str = " | ".join(sample_data)
+            
+            tree.insert('', 'end', values=[f"行 {idx+1}", reason, sample_str])
+        
+        if len(empty_row_indices) > 100:
+            tree.insert('', 'end', values=[f"... 他 {len(empty_row_indices) - 100} 行", "省略", ""])
+    
+    def create_empty_columns_preview(self, parent):
+        """空列プレビューを作成"""
+        # ヘッダー
+        header_frame = ttk.Frame(parent)
+        header_frame.pack(fill=tk.X, pady=10)
+        
+        ttk.Label(header_frame, text="🗂️ 削除対象の空列", font=('Arial', 12, 'bold')).pack()
+        
+        # 検出処理
+        empty_columns = self.detect_empty_columns_advanced()
+        
+        if not empty_columns:
+            ttk.Label(parent, text="✅ 削除対象の空列はありません", 
+                     font=('Arial', 11), foreground='green').pack(pady=20)
+            return
+        
+        # 統計情報
+        stats_frame = ttk.Frame(parent)
+        stats_frame.pack(fill=tk.X, pady=10)
+        
+        stats_text = f"検出された空列: {len(empty_columns)}列 / {len(self.data.columns)}列中"
+        ttk.Label(stats_frame, text=stats_text, font=('Arial', 10)).pack()
+        
+        # 空列リスト表示
+        list_frame = ttk.Frame(parent)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        
+        # Treeview作成
+        columns = ['列名', 'データ型', '空の理由', 'サンプル値']
+        tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
+        
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=150)
+        
+        # スクロールバー
+        scrollbar_y = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=tree.yview)
+        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
+        tree.configure(yscrollcommand=scrollbar_y.set)
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # 空列データを表示
+        for col_name in empty_columns:
+            col_data = self.data[col_name]
+            data_type = str(col_data.dtype)
+            
+            # 空の理由を分析
+            reason = self.analyze_empty_reason_column(col_data)
+            
+            # サンプル値（NaN以外の最初の値）
+            sample_vals = []
+            for val in col_data.head(10):
+                if pd.notna(val):
+                    val_str = str(val)[:20]
+                    if val_str.strip():
+                        sample_vals.append(f"'{val_str}'")
+                    else:
+                        sample_vals.append("[空文字]")
+                else:
+                    sample_vals.append("[NaN]")
+            
+            sample_str = " | ".join(sample_vals[:3]) if sample_vals else "[すべてNaN]"
+            
+            tree.insert('', 'end', values=[col_name, data_type, reason, sample_str])
+    
+    def create_detailed_analysis(self, parent):
+        """詳細分析タブを作成"""
+        # スクロール可能なテキストエリア
+        text_widget = scrolledtext.ScrolledText(parent, wrap=tk.WORD, 
+                                               font=('Consolas', 9), bg='#f8f8f8')
+        text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # 詳細分析レポートを生成
+        analysis = self.generate_empty_detailed_analysis()
+        
+        # レポートをテキストエリアに挿入
+        text_widget.insert(tk.END, analysis)
+        text_widget.config(state='disabled')
+    
+    def analyze_empty_reason_row(self, row_data):
+        """空行の理由を分析"""
+        nan_count = row_data.isna().sum()
+        total_cols = len(row_data)
+        
+        if nan_count == total_cols:
+            return "完全NaN"
+        elif nan_count > total_cols * 0.8:
+            return "ほぼNaN"
+        else:
+            # 非NaNの値をチェック
+            non_nan_vals = row_data.dropna()
+            if len(non_nan_vals) == 0:
+                return "すべて空"
+            
+            # 空文字列・スペースのみかチェック
+            empty_like_count = 0
+            for val in non_nan_vals:
+                str_val = str(val).strip()
+                if not str_val or str_val.isspace():
+                    empty_like_count += 1
+            
+            if empty_like_count == len(non_nan_vals):
+                return "空文字・スペース"
+            else:
+                return "特殊パターン"
+    
+    def analyze_empty_reason_column(self, col_data):
+        """空列の理由を分析"""
+        nan_count = col_data.isna().sum()
+        total_rows = len(col_data)
+        
+        if nan_count == total_rows:
+            return "完全NaN"
+        elif nan_count > total_rows * 0.95:
+            return "ほぼNaN"
+        else:
+            # 非NaNの値をチェック
+            non_nan_vals = col_data.dropna()
+            if len(non_nan_vals) == 0:
+                return "すべて空"
+            
+            # 空文字列・スペースのみかチェック
+            empty_like_count = 0
+            for val in non_nan_vals:
+                str_val = str(val).strip()
+                if not str_val or str_val.isspace():
+                    empty_like_count += 1
+            
+            if empty_like_count == len(non_nan_vals):
+                return "空文字・スペース"
+            else:
+                return "特殊パターン"
+    
+    def generate_empty_detailed_analysis(self):
+        """空行列の詳細分析レポートを生成"""
+        analysis = "📋 空行列詳細分析レポート\n"
+        analysis += "=" * 60 + "\n\n"
+        
+        # 空行分析
+        empty_row_indices = self.detect_empty_rows_advanced()
+        analysis += f"🗑️ 空行詳細分析:\n"
+        analysis += f"  • 検出空行数: {len(empty_row_indices)} 行\n"
+        
+        if empty_row_indices:
+            # パターン別分析
+            pattern_counts = {}
+            for idx in empty_row_indices[:50]:  # 最初の50行を分析
+                row_data = self.data.iloc[idx]
+                reason = self.analyze_empty_reason_row(row_data)
+                pattern_counts[reason] = pattern_counts.get(reason, 0) + 1
+            
+            analysis += f"  • パターン別内訳:\n"
+            for pattern, count in pattern_counts.items():
+                analysis += f"    - {pattern}: {count} 行\n"
+        
+        analysis += "\n"
+        
+        # 空列分析
+        empty_columns = self.detect_empty_columns_advanced()
+        analysis += f"🗂️ 空列詳細分析:\n"
+        analysis += f"  • 検出空列数: {len(empty_columns)} 列\n"
+        
+        if empty_columns:
+            # データ型別分析
+            type_counts = {}
+            for col in empty_columns:
+                dtype = str(self.data[col].dtype)
+                type_counts[dtype] = type_counts.get(dtype, 0) + 1
+            
+            analysis += f"  • データ型別内訳:\n"
+            for dtype, count in type_counts.items():
+                analysis += f"    - {dtype}: {count} 列\n"
+            
+            analysis += f"  • 削除対象列一覧:\n"
+            for col in empty_columns:
+                analysis += f"    - {col}\n"
+        
+        analysis += "\n"
+        
+        # 推奨アクション
+        analysis += f"💡 推奨アクション:\n"
+        if empty_row_indices or empty_columns:
+            if empty_row_indices:
+                analysis += f"  1. {len(empty_row_indices)} 行の空行を削除\n"
+            if empty_columns:
+                analysis += f"  2. {len(empty_columns)} 列の空列を削除\n"
+            
+            reduction_estimate = len(empty_row_indices) / len(self.data) * 100
+            analysis += f"  3. データサイズ削減予想: 約{reduction_estimate:.1f}%\n"
+        else:
+            analysis += f"  ✅ 削除対象なし。データはクリーンです。\n"
+        
+        return analysis
+    
+    def auto_clean_data(self, parent_window=None):
+        """自動クリーニングを実行"""
+        if self.data is None:
+            messagebox.showwarning("データなし", "データが読み込まれていません。")
+            return
+        
+        try:
+            # 確認ダイアログ
+            result = messagebox.askyesno(
+                "自動クリーニング確認",
+                "以下の処理を自動実行します：\n\n"
+                "1. 高度空行削除\n"
+                "2. 高度空列削除\n"
+                "3. 重複行削除\n"
+                "4. テキストデータクリーニング\n\n"
+                "実行しますか？"
+            )
+            
+            if not result:
+                return
+            
+            initial_shape = self.data.shape
+            
+            # 1. 空行削除
+            empty_rows = self.detect_empty_rows_advanced()
+            if empty_rows:
+                self.data = self.data.drop(empty_rows)
+                self.data = self.data.reset_index(drop=True)
+                self.log_action(f"自動クリーニング: {len(empty_rows)}行の空行を削除")
+            
+            # 2. 空列削除
+            empty_cols = self.detect_empty_columns_advanced()
+            if empty_cols:
+                self.data = self.data.drop(columns=empty_cols)
+                self.log_action(f"自動クリーニング: {len(empty_cols)}列の空列を削除")
+            
+            # 3. 重複行削除
+            initial_rows = len(self.data)
+            self.data = self.data.drop_duplicates()
+            duplicates_removed = initial_rows - len(self.data)
+            if duplicates_removed > 0:
+                self.log_action(f"自動クリーニング: {duplicates_removed}行の重複を削除")
+            
+            # 4. テキストクリーニング
+            text_columns = self.data.select_dtypes(include=['object']).columns
+            for col in text_columns:
+                self.data[col] = self.data[col].astype(str).str.strip()
+                self.data[col] = self.data[col].str.replace(r'\s+', ' ', regex=True)
+            
+            final_shape = self.data.shape
+            
+            # GUI更新
+            self.update_data_info()
+            self.update_data_table()
+            
+            # 結果報告
+            total_rows_removed = initial_shape[0] - final_shape[0]
+            total_cols_removed = initial_shape[1] - final_shape[1]
+            
+            success_msg = f"🎉 自動クリーニング完了！\n\n"
+            success_msg += f"📊 処理前: {initial_shape[0]:,} 行 × {initial_shape[1]} 列\n"
+            success_msg += f"📊 処理後: {final_shape[0]:,} 行 × {final_shape[1]} 列\n"
+            success_msg += f"🔥 削除: {total_rows_removed:,} 行, {total_cols_removed} 列\n\n"
+            success_msg += f"実行した処理:\n"
+            success_msg += f"• 空行削除: {len(empty_rows)} 行\n"
+            success_msg += f"• 空列削除: {len(empty_cols)} 列\n"
+            success_msg += f"• 重複削除: {duplicates_removed} 行\n"
+            success_msg += f"• テキスト整形: {len(text_columns)} 列"
+            
+            messagebox.showinfo("自動クリーニング完了", success_msg)
+            
+            self.update_status(f"✅ 自動クリーニング完了 ({final_shape[0]}行 × {final_shape[1]}列)")
+            
+            # 親ウィンドウを閉じる
+            if parent_window:
+                parent_window.destroy()
+                
+        except Exception as e:
+            self.show_error(f"自動クリーニングエラー: {str(e)}")
+    
+    def rename_columns_dialog(self):
+        """列名変更ダイアログを表示"""
+        if self.data is None:
+            return
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("列名変更")
+        dialog.geometry("600x500")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # 説明
+        ttk.Label(dialog, text="変更したい列名をダブルクリックして編集してください", 
+                 font=('Arial', 10)).pack(pady=10)
+        
+        # 列名リスト
+        frame = ttk.Frame(dialog)
+        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        # Treeview
+        columns = ['現在の列名', '新しい列名']
+        tree = ttk.Treeview(frame, columns=columns, show='headings', height=15)
+        
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=250)
+        
+        # スクロールバー
+        scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=tree.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        tree.configure(yscrollcommand=scrollbar.set)
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # 現在の列名を表示
+        for col in self.data.columns:
+            tree.insert('', 'end', values=[col, col])
+        
+        def on_double_click(event):
+            item = tree.selection()[0]
+            old_name, current_new_name = tree.item(item, 'values')
+            
+            # 編集ダイアログ
+            edit_dialog = tk.Toplevel(dialog)
+            edit_dialog.title(f"列名編集: {old_name}")
+            edit_dialog.geometry("400x150")
+            edit_dialog.transient(dialog)
+            edit_dialog.grab_set()
+            
+            ttk.Label(edit_dialog, text=f"現在の列名: {old_name}").pack(pady=10)
+            ttk.Label(edit_dialog, text="新しい列名:").pack()
+            
+            new_name_var = tk.StringVar(value=current_new_name)
+            entry = ttk.Entry(edit_dialog, textvariable=new_name_var, width=40)
+            entry.pack(pady=5)
+            entry.focus()
+            entry.select_range(0, tk.END)
+            
+            button_frame = ttk.Frame(edit_dialog)
+            button_frame.pack(pady=10)
+            
+            def save_name():
+                new_name = new_name_var.get().strip()
+                if new_name and new_name != old_name:
+                    tree.item(item, values=[old_name, new_name])
+                edit_dialog.destroy()
+            
+            ttk.Button(button_frame, text="保存", command=save_name).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="キャンセル", command=edit_dialog.destroy).pack(side=tk.LEFT)
+            
+            # Enterキーで保存
+            entry.bind('<Return>', lambda e: save_name())
+        
+        tree.bind('<Double-1>', on_double_click)
+        
+        # ボタン
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=20)
+        
+        def apply_changes():
+            changes = {}
+            for item in tree.get_children():
+                old_name, new_name = tree.item(item, 'values')
+                if old_name != new_name and new_name.strip():
+                    changes[old_name] = new_name.strip()
+            
+            if changes:
+                self.data = self.data.rename(columns=changes)
+                self.update_data_info()
+                self.update_data_table()
+                
+                self.log_action(f"列名変更: {len(changes)}列変更")
+                self.update_status(f"✅ {len(changes)}列の列名を変更しました")
+                
+                messagebox.showinfo("完了", f"{len(changes)}列の列名を変更しました。")
+                dialog.destroy()
+            else:
+                messagebox.showinfo("情報", "変更する列名がありません。")
+        
+        ttk.Button(button_frame, text="✅ 変更適用", command=apply_changes, style='Action.TButton').pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="❌ キャンセル", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+    
+    def filter_data_dialog(self):
+        """データフィルタダイアログを表示"""
+        if self.data is None:
+            return
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("データフィルタ")
+        dialog.geometry("500x400")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text="フィルタ条件を設定してください", font=('Arial', 11, 'bold')).pack(pady=10)
+        
+        # 列選択
+        column_frame = ttk.Frame(dialog)
+        column_frame.pack(fill=tk.X, padx=20, pady=10)
+        
+        ttk.Label(column_frame, text="対象列:").pack(side=tk.LEFT)
+        column_var = tk.StringVar()
+        column_combo = ttk.Combobox(column_frame, textvariable=column_var, values=list(self.data.columns), width=20)
+        column_combo.pack(side=tk.LEFT, padx=5)
+        
+        # 条件設定
+        condition_frame = ttk.Frame(dialog)
+        condition_frame.pack(fill=tk.X, padx=20, pady=10)
+        
+        ttk.Label(condition_frame, text="条件:").pack(side=tk.LEFT)
+        condition_var = tk.StringVar(value="contains")
+        condition_combo = ttk.Combobox(condition_frame, textvariable=condition_var, 
+                                     values=["contains", "equals", "starts_with", "ends_with", "not_contains"], width=15)
+        condition_combo.pack(side=tk.LEFT, padx=5)
+        
+        # 値入力
+        value_frame = ttk.Frame(dialog)
+        value_frame.pack(fill=tk.X, padx=20, pady=10)
+        
+        ttk.Label(value_frame, text="値:").pack(side=tk.LEFT)
+        value_var = tk.StringVar()
+        value_entry = ttk.Entry(value_frame, textvariable=value_var, width=25)
+        value_entry.pack(side=tk.LEFT, padx=5)
+        
+        # プレビュー
+        preview_frame = ttk.LabelFrame(dialog, text="プレビュー", padding="10")
+        preview_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        preview_text = tk.Text(preview_frame, height=8, font=('Consolas', 9))
+        preview_text.pack(fill=tk.BOTH, expand=True)
+        
+        def update_preview():
+            try:
+                col = column_var.get()
+                condition = condition_var.get()
+                value = value_var.get()
+                
+                if not col or not value:
+                    preview_text.delete(1.0, tk.END)
+                    preview_text.insert(1.0, "列名と値を入力してください。")
+                    return
+                
+                # フィルタ適用
+                if condition == "contains":
+                    filtered_data = self.data[self.data[col].astype(str).str.contains(value, case=False, na=False)]
+                elif condition == "equals":
+                    filtered_data = self.data[self.data[col].astype(str) == value]
+                elif condition == "starts_with":
+                    filtered_data = self.data[self.data[col].astype(str).str.startswith(value, na=False)]
+                elif condition == "ends_with":
+                    filtered_data = self.data[self.data[col].astype(str).str.endswith(value, na=False)]
+                elif condition == "not_contains":
+                    filtered_data = self.data[~self.data[col].astype(str).str.contains(value, case=False, na=False)]
+                
+                preview_info = f"フィルタ結果: {len(filtered_data):,} 行 / {len(self.data):,} 行中\n\n"
+                preview_info += "最初の5行:\n"
+                preview_info += filtered_data.head().to_string()
+                
+                preview_text.delete(1.0, tk.END)
+                preview_text.insert(1.0, preview_info)
+                
+            except Exception as e:
+                preview_text.delete(1.0, tk.END)
+                preview_text.insert(1.0, f"エラー: {str(e)}")
+        
+        # イベントバインド
+        for widget in [column_combo, condition_combo, value_entry]:
+            widget.bind('<KeyRelease>', lambda e: update_preview())
+            widget.bind('<<ComboboxSelected>>', lambda e: update_preview())
+        
+        # ボタン
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=20)
+        
+        def apply_filter():
+            try:
+                col = column_var.get()
+                condition = condition_var.get()
+                value = value_var.get()
+                
+                if not col or not value:
+                    messagebox.showwarning("警告", "列名と値を入力してください。")
+                    return
+                
+                initial_rows = len(self.data)
+                
+                # フィルタ適用
+                if condition == "contains":
+                    self.data = self.data[self.data[col].astype(str).str.contains(value, case=False, na=False)]
+                elif condition == "equals":
+                    self.data = self.data[self.data[col].astype(str) == value]
+                elif condition == "starts_with":
+                    self.data = self.data[self.data[col].astype(str).str.startswith(value, na=False)]
+                elif condition == "ends_with":
+                    self.data = self.data[self.data[col].astype(str).str.endswith(value, na=False)]
+                elif condition == "not_contains":
+                    self.data = self.data[~self.data[col].astype(str).str.contains(value, case=False, na=False)]
+                
+                final_rows = len(self.data)
+                filtered_rows = initial_rows - final_rows
+                
+                self.update_data_info()
+                self.update_data_table()
+                
+                self.log_action(f"データフィルタ: {col} {condition} '{value}' ({filtered_rows}行削除)")
+                self.update_status(f"✅ フィルタ適用完了 ({final_rows}行残存)")
+                
+                messagebox.showinfo("完了", f"フィルタ適用完了\n{initial_rows:,} → {final_rows:,} 行")
+                dialog.destroy()
+                
+            except Exception as e:
+                messagebox.showerror("エラー", f"フィルタ適用エラー: {str(e)}")
+        
+        ttk.Button(button_frame, text="✅ フィルタ適用", command=apply_filter, style='Action.TButton').pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="🔄 プレビュー更新", command=update_preview).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="❌ キャンセル", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+    
+    def safe_export_data(self):
+        """安全なデータエクスポート（メインボタン）"""
+        try:
+            if self.data is None:
+                # データがない場合でもサンプルデータを作成して保存
+                messagebox.showinfo("データ作成", 
+                    "データが読み込まれていないため、\n"
+                    "サンプルデータを作成して保存します。")
+                
+                # 簡単なサンプルデータを作成
+                sample_data = pd.DataFrame({
+                    '列1': [1, 2, 3, 4, 5],
+                    '列2': ['A', 'B', 'C', 'D', 'E'],
+                    '列3': [1.1, 2.2, 3.3, 4.4, 5.5]
+                })
+                self.data = sample_data
+                self.log_action("サンプルデータを作成")
+            
+            # ファイル保存ダイアログ
+            export_format = self.export_format.get()
+            
+            if export_format == "excel":
+                file_path = filedialog.asksaveasfilename(
+                    title="Excelファイルとして保存",
+                    defaultextension=".xlsx",
+                    filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+                )
+                
+                if file_path:
+                    self.export_to_excel(file_path)
+            else:
+                file_path = filedialog.asksaveasfilename(
+                    title="CSVファイルとして保存",
+                    defaultextension=".csv",
+                    filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+                )
+                
+                if file_path:
+                    self.export_to_csv(file_path)
+            
+        except Exception as e:
+            messagebox.showerror("エクスポートエラー", f"エクスポート中にエラーが発生しました:\n{str(e)}")
+    
+    def quick_export_excel(self):
+        """クイックExcelエクスポート"""
+        try:
+            if self.data is None:
+                # サンプルデータを作成
+                sample_data = pd.DataFrame({
+                    'サンプル列1': [1, 2, 3],
+                    'サンプル列2': ['データA', 'データB', 'データC']
+                })
+                self.data = sample_data
+                self.log_action("サンプルデータ作成（Excel保存用）")
+            
+            # ファイル名を自動生成
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"tableau_data_{timestamp}.xlsx"
+            
+            file_path = filedialog.asksaveasfilename(
+                title="Excel形式で保存",
+                initialname=filename,
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+            )
+            
+            if file_path:
+                self.export_to_excel(file_path)
+                
+        except Exception as e:
+            messagebox.showerror("Excel保存エラー", f"Excel保存中にエラー:\n{str(e)}")
+    
+    def quick_export_csv(self):
+        """クイックCSVエクスポート"""
+        try:
+            if self.data is None:
+                # サンプルデータを作成
+                sample_data = pd.DataFrame({
+                    'サンプル列1': [1, 2, 3],
+                    'サンプル列2': ['データA', 'データB', 'データC']
+                })
+                self.data = sample_data
+                self.log_action("サンプルデータ作成（CSV保存用）")
+            
+            # ファイル名を自動生成
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"tableau_data_{timestamp}.csv"
+            
+            file_path = filedialog.asksaveasfilename(
+                title="CSV形式で保存",
+                initialname=filename,
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            
+            if file_path:
+                self.export_to_csv(file_path)
+                
+        except Exception as e:
+            messagebox.showerror("CSV保存エラー", f"CSV保存中にエラー:\n{str(e)}")
+    
+    def export_to_excel(self, file_path):
+        """Excelファイルにエクスポート"""
+        try:
+            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                # メインデータ
+                self.data.to_excel(writer, sheet_name='データ', index=False)
+                
+                # 処理サマリー（オプション）
+                if self.include_summary.get():
+                    summary_data = self.generate_summary_data()
+                    summary_df = pd.DataFrame(list(summary_data.items()), columns=['項目', '値'])
+                    summary_df.to_excel(writer, sheet_name='処理サマリー', index=False)
+                
+                # 処理ログ（オプション）
+                if self.include_log.get() and self.processing_log:
+                    log_df = pd.DataFrame(self.processing_log, columns=['処理ログ'])
+                    log_df.to_excel(writer, sheet_name='処理ログ', index=False)
+            
+            self.log_action(f"Excelエクスポート: {file_path}")
+            
+            success_msg = f"✅ Excelファイルの保存が完了しました！\n\n"
+            success_msg += f"📁 保存先: {file_path}\n"
+            success_msg += f"📊 データサイズ: {self.data.shape[0]:,} 行 × {self.data.shape[1]} 列\n"
+            success_msg += f"📋 シート数: "
+            
+            sheet_count = 1
+            if self.include_summary.get():
+                sheet_count += 1
+            if self.include_log.get() and self.processing_log:
+                sheet_count += 1
+            
+            success_msg += f"{sheet_count} シート"
+            
+            messagebox.showinfo("Excel保存完了", success_msg)
+            self.update_status("✅ Excelファイル保存完了")
+            
+        except Exception as e:
+            raise Exception(f"Excelファイルの保存に失敗しました: {str(e)}")
+    
+    def export_to_csv(self, file_path):
+        """CSVファイルにエクスポート"""
+        try:
+            # メインデータをCSV保存
+            self.data.to_csv(file_path, index=False, encoding='utf-8-sig')
+            
+            # 追加ファイル保存（オプション）
+            base_path = os.path.splitext(file_path)[0]
+            
+            if self.include_summary.get():
+                summary_data = self.generate_summary_data()
+                summary_df = pd.DataFrame(list(summary_data.items()), columns=['項目', '値'])
+                summary_path = f"{base_path}_サマリー.csv"
+                summary_df.to_csv(summary_path, index=False, encoding='utf-8-sig')
+            
+            if self.include_log.get() and self.processing_log:
+                log_df = pd.DataFrame(self.processing_log, columns=['処理ログ'])
+                log_path = f"{base_path}_ログ.csv"
+                log_df.to_csv(log_path, index=False, encoding='utf-8-sig')
+            
+            self.log_action(f"CSVエクスポート: {file_path}")
+            
+            success_msg = f"✅ CSVファイルの保存が完了しました！\n\n"
+            success_msg += f"📁 保存先: {file_path}\n"
+            success_msg += f"📊 データサイズ: {self.data.shape[0]:,} 行 × {self.data.shape[1]} 列\n"
+            success_msg += f"📄 エンコーディング: UTF-8 (BOM付き)\n"
+            
+            file_count = 1
+            if self.include_summary.get():
+                file_count += 1
+            if self.include_log.get() and self.processing_log:
+                file_count += 1
+            
+            success_msg += f"📋 保存ファイル数: {file_count} ファイル"
+            
+            messagebox.showinfo("CSV保存完了", success_msg)
+            self.update_status("✅ CSVファイル保存完了")
+            
+        except Exception as e:
+            raise Exception(f"CSVファイルの保存に失敗しました: {str(e)}")
+    
+    def generate_summary_data(self):
+        """処理サマリーデータを生成"""
+        summary = {
+            '処理日時': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'データサイズ（行）': f"{self.data.shape[0]:,}",
+            'データサイズ（列）': f"{self.data.shape[1]}",
+            '元ファイル': os.path.basename(self.file_path) if self.file_path else "サンプルデータ",
+            '処理回数': f"{len(self.processing_log)}",
+            '空セル数': f"{self.data.isnull().sum().sum():,}",
+            '重複行数': f"{self.data.duplicated().sum():,}",
+            'データ型': f"数値列{len(self.data.select_dtypes(include=[np.number]).columns)}個, 文字列列{len(self.data.select_dtypes(include=['object']).columns)}個"
+        }
+        
+        return summary
+    
+    def reset_data(self):
+        """データをリセット"""
+        if self.original_data is not None:
+            result = messagebox.askyesno("データリセット", "データを元の状態に戻しますか？\n現在の変更は失われます。")
+            
+            if result:
+                self.data = self.original_data.copy()
+                
+                self.update_data_info()
+                self.update_data_table()
+                
+                self.log_action("データリセット: 元の状態に復元")
+                self.update_status("✅ データを元の状態にリセットしました")
+                
+                messagebox.showinfo("リセット完了", "データを元の状態に戻しました。")
+        else:
+            messagebox.showinfo("情報", "リセット可能な元データがありません。")
+    
+    def show_processing_log(self):
+        """処理ログを表示"""
+        if not self.processing_log:
+            messagebox.showinfo("ログなし", "実行された処理がありません。")
+            return
+        
+        # ログウィンドウ作成
+        log_window = tk.Toplevel(self.root)
+        log_window.title("📋 処理ログ")
+        log_window.geometry("800x600")
+        log_window.transient(self.root)
+        
+        # スクロール可能なテキストエリア
+        text_widget = scrolledtext.ScrolledText(log_window, wrap=tk.WORD, 
+                                               font=('Consolas', 10), bg='#f8f8f8')
+        text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # ログを表示
+        log_content = "📋 処理ログ\n"
+        log_content += "=" * 60 + "\n\n"
+        
+        for i, log_entry in enumerate(self.processing_log, 1):
+            log_content += f"{i:3d}. {log_entry}\n"
+        
+        log_content += "\n" + "=" * 60 + "\n"
+        log_content += f"総処理数: {len(self.processing_log)} 件\n"
+        log_content += f"現在のデータ: {self.data.shape[0]:,} 行 × {self.data.shape[1]} 列\n" if self.data is not None else "現在のデータ: なし\n"
+        
+        text_widget.insert(tk.END, log_content)
+        text_widget.config(state='disabled')
+        
+        # ボタンフレーム
+        button_frame = ttk.Frame(log_window)
+        button_frame.pack(pady=10)
+        
+        def export_log():
+            file_path = filedialog.asksaveasfilename(
+                title="ログをテキストファイルで保存",
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+            )
+            
+            if file_path:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(log_content)
+                messagebox.showinfo("保存完了", f"ログを保存しました:\n{file_path}")
+        
+        ttk.Button(button_frame, text="💾 ログを保存", command=export_log).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="閉じる", command=log_window.destroy).pack(side=tk.LEFT, padx=5)
+
+
+def main():
+    """メイン関数"""
+    root = tk.Tk()
+    app = TableauPreprocessorGUI(root)
+    
+    # ウィンドウを中央に配置
+    root.eval('tk::PlaceWindow . center')
+    
+    # プログラム開始ログ
+    print("=" * 60)
+    print("📊 Tableau Excel前処理ツール GUI版 起動")
+    print("=" * 60)
+    
+    try:
+        root.mainloop()
+    except KeyboardInterrupt:
+        print("\n🛑 プログラムが中断されました")
+    except Exception as e:
+        print(f"❌ 予期しないエラー: {e}")
+    finally:
+        print("👋 プログラムを終了します")
+
+
+if __name__ == "__main__":
+    main()
