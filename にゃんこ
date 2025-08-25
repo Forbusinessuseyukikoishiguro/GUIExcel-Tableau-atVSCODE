@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau データビジュアライゼーション ギャラリー</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+        
+        :root {
+            --sakura-pink: #FFB7C5;
+            --soft-pink: #F8E8EA;
+            --deep-pink: #E85A8C;
+            --cream: #FFF5F5;
+            --charcoal: #333333;
+            --light-gray: #F5F5F5;
+            --gold: #D4AF37;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, var(--cream) 0%, var(--soft-pink) 100%);
+            color: var(--charcoal);
+            line-height: 1.6;
+        }
+
+        /* 背景エフェクト */
+        .background-effects {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* 桜の花びらアニメーション */
+        .sakura {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--sakura-pink);
+            border-radius: 50% 0 50% 0;
+            animation: fall 10s infinite linear;
+            opacity: 0.1;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 0.3;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* キラキラエフェクト */
+        .sparkle {
+            position: absolute;
+            background: radial-gradient(circle, var(--sakura-pink) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: sparkle 3s infinite ease-in-out;
+        }
+
+        .sparkle.small {
+            width: 3px;
+            height: 3px;
+        }
+
+        .sparkle.medium {
+            width: 5px;
+            height: 5px;
+        }
+
+        .sparkle.large {
+            width: 8px;
+            height: 8px;
+        }
+
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1) rotate(180deg);
+            }
+        }
+
+        /* 光る粒子エフェクト */
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--gold);
+            border-radius: 50%;
+            animation: float 6s infinite ease-in-out;
+            box-shadow: 0 0 6px var(--gold);
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) translateX(0px);
+                opacity: 0.3;
+            }
+            33% {
+                transform: translateY(-20px) translateX(10px);
+                opacity: 1;
+            }
+            66% {
+                transform: translateY(-10px) translateX(-15px);
+                opacity: 0.7;
+            }
+        }
+
+        /* 輝く波紋エフェクト */
+        .ripple {
+            position: absolute;
+            border: 1px solid var(--sakura-pink);
+            border-radius: 50%;
+            animation: ripple 4s infinite ease-out;
+        }
+
+        @keyframes ripple {
+            0% {
+                width: 0;
+                height: 0;
+                opacity: 1;
+            }
+            100% {
+                width: 200px;
+                height: 200px;
+                opacity: 0;
+            }
+        }
+
+        /* クリックエフェクト */
+        .click-sparkle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            border-radius: 50%;
+            animation: clickSparkle 1.5s ease-out forwards;
+        }
+
+        @keyframes clickSparkle {
+            0% {
+                transform: scale(0) rotate(0deg);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.2) rotate(180deg);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0.8) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .click-ripple {
+            position: fixed;
+            pointer-events: none;
+            z-index: 999;
+            border: 2px solid var(--sakura-pink);
+            border-radius: 50%;
+            animation: clickRipple 2s ease-out forwards;
+        }
+
+        @keyframes clickRipple {
+            0% {
+                width: 0;
+                height: 0;
+                opacity: 0.8;
+                border-width: 3px;
+            }
+            50% {
+                opacity: 0.4;
+                border-width: 2px;
+            }
+            100% {
+                width: 200px;
+                height: 200px;
+                opacity: 0;
+                border-width: 1px;
+            }
+        }
+
+        .click-particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 998;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: clickParticle 2s ease-out forwards;
+        }
+
+        @keyframes clickParticle {
+            0% {
+                transform: scale(1) translate(0, 0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0.3) translate(var(--dx), var(--dy));
+                opacity: 0;
+            }
+        }
+
+        /* 調和効果（背景色の変化） */
+        body.harmony-effect {
+            background: linear-gradient(135deg, 
+                var(--cream) 0%, 
+                rgba(255, 183, 197, 0.3) 25%,
+                var(--soft-pink) 50%,
+                rgba(212, 175, 55, 0.2) 75%,
+                var(--cream) 100%);
+            transition: background 2s ease-out;
+        }
+
+        /* 音符エフェクト */
+        .musical-note {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1001;
+            font-size: 20px;
+            color: var(--deep-pink);
+            text-shadow: 0 0 10px var(--sakura-pink);
+            animation: musicalNote 3s ease-out forwards;
+        }
+
+        @keyframes musicalNote {
+            0% {
+                transform: translateY(0) rotate(0deg) scale(0);
+                opacity: 0;
+            }
+            20% {
+                transform: translateY(-20px) rotate(15deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(45deg) scale(0.3);
+                opacity: 0;
+            }
+        }
+
+        /* 猫エフェクト */
+        .cat {
+            position: absolute;
+            font-size: 24px;
+            animation: catWalk 15s infinite linear;
+            z-index: 1;
+        }
+
+        .cat.walking-right {
+            animation: catWalkRight 15s infinite linear;
+        }
+
+        .cat.walking-left {
+            animation: catWalkLeft 15s infinite linear;
+        }
+
+        @keyframes catWalkRight {
+            0% {
+                left: -50px;
+                transform: scaleX(1);
+            }
+            100% {
+                left: 100%;
+                transform: scaleX(1);
+            }
+        }
+
+        @keyframes catWalkLeft {
+            0% {
+                left: 100%;
+                transform: scaleX(-1);
+            }
+            100% {
+                left: -50px;
+                transform: scaleX(-1);
+            }
+        }
+
+        /* 猫の足跡エフェクト */
+        .paw-print {
+            position: fixed;
+            font-size: 16px;
+            color: var(--sakura-pink);
+            opacity: 0.7;
+            animation: pawPrint 3s ease-out forwards;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        @keyframes pawPrint {
+            0% {
+                opacity: 0;
+                transform: scale(0) rotate(-10deg);
+            }
+            20% {
+                opacity: 0.8;
+                transform: scale(1) rotate(0deg);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.8) rotate(10deg);
+            }
+        }
+
+        /* 猫じゃらしエフェクト */
+        .cat-toy {
+            position: absolute;
+            font-size: 20px;
+            animation: toyFloat 4s ease-in-out infinite;
+        }
+
+        @keyframes toyFloat {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-15px) rotate(10deg);
+            }
+        }
+
+        /* 魚エフェクト */
+        .fish {
+            position: absolute;
+            font-size: 18px;
+            animation: fishSwim 8s ease-in-out infinite;
+            opacity: 0.6;
+        }
+
+        @keyframes fishSwim {
+            0%, 100% {
+                transform: translateX(0px) translateY(0px);
+            }
+            25% {
+                transform: translateX(20px) translateY(-10px);
+            }
+            50% {
+                transform: translateX(40px) translateY(5px);
+            }
+            75% {
+                transform: translateX(20px) translateY(-5px);
+            }
+        }
+
+        /* 猫の鳴き声エフェクト */
+        .meow-text {
+            position: fixed;
+            font-size: 18px;
+            color: var(--deep-pink);
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--sakura-pink);
+            animation: meowEffect 2s ease-out forwards;
+            pointer-events: none;
+            z-index: 1001;
+        }
+
+        @keyframes meowEffect {
+            0% {
+                opacity: 0;
+                transform: translateY(0) scale(0.5);
+            }
+            30% {
+                opacity: 1;
+                transform: translateY(-20px) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.8);
+            }
+        }
+
+        /* ヘッダーの猫アクセント */
+        .header-cat {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 20px;
+            animation: catBounce 3s ease-in-out infinite;
+            opacity: 0.8;
+        }
+
+        @keyframes catBounce {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-5px) rotate(5deg);
+            }
+        }
+
+        /* 光の輪エフェクト */
+        .light-ring {
+            position: fixed;
+            pointer-events: none;
+            z-index: 997;
+            border: 1px solid var(--gold);
+            border-radius: 50%;
+            box-shadow: 
+                0 0 20px var(--gold),
+                inset 0 0 20px rgba(212, 175, 55, 0.3);
+            animation: lightRing 3s ease-out forwards;
+        }
+
+        @keyframes lightRing {
+            0% {
+                width: 10px;
+                height: 10px;
+                opacity: 1;
+                transform: rotate(0deg);
+            }
+            50% {
+                opacity: 0.6;
+            }
+            100% {
+                width: 300px;
+                height: 300px;
+                opacity: 0;
+                transform: rotate(360deg);
+            }
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem 0;
+            text-align: center;
+            border-bottom: 3px solid var(--sakura-pink);
+            position: relative;
+            box-shadow: 
+                0 4px 20px rgba(232, 90, 140, 0.15),
+                0 8px 40px rgba(232, 90, 140, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            z-index: 10;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(255, 183, 197, 0.1) 0%, 
+                rgba(248, 232, 234, 0.15) 50%, 
+                rgba(255, 183, 197, 0.05) 100%);
+            z-index: -1;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 10px;
+            background: linear-gradient(to right, 
+                transparent 0%, 
+                rgba(232, 90, 140, 0.2) 50%, 
+                transparent 100%);
+            filter: blur(8px);
+        }
+
+        .header-decoration {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255, 183, 197, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+            box-shadow: 
+                0 0 30px rgba(255, 183, 197, 0.4),
+                0 0 60px rgba(255, 183, 197, 0.2),
+                inset 0 0 20px rgba(255, 255, 255, 0.3);
+            animation: glow 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            0% {
+                box-shadow: 
+                    0 0 30px rgba(255, 183, 197, 0.4),
+                    0 0 60px rgba(255, 183, 197, 0.2),
+                    inset 0 0 20px rgba(255, 255, 255, 0.3);
+            }
+            100% {
+                box-shadow: 
+                    0 0 40px rgba(255, 183, 197, 0.6),
+                    0 0 80px rgba(255, 183, 197, 0.3),
+                    inset 0 0 30px rgba(255, 255, 255, 0.4);
+            }
+        }
+
+        .portfolio-label {
+            font-size: 0.8rem;
+            color: var(--deep-pink);
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+            text-shadow: 
+                0 1px 2px rgba(232, 90, 140, 0.3),
+                0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--deep-pink);
+            margin-bottom: 0.5rem;
+            text-shadow: 
+                0 2px 4px rgba(232, 90, 140, 0.4),
+                0 4px 8px rgba(0, 0, 0, 0.15),
+                0 6px 12px rgba(232, 90, 140, 0.2);
+            font-weight: 500;
+            position: relative;
+        }
+
+        h1::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120%;
+            height: 120%;
+            background: radial-gradient(ellipse, 
+                rgba(255, 183, 197, 0.1) 0%, 
+                transparent 70%);
+            z-index: -1;
+            border-radius: 50px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--charcoal);
+            opacity: 0.8;
+            text-shadow: 
+                0 1px 3px rgba(0, 0, 0, 0.1),
+                0 2px 6px rgba(232, 90, 140, 0.15);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .dashboard-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(232, 90, 140, 0.1);
+            border: 1px solid rgba(255, 183, 197, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, var(--sakura-pink), transparent);
+            opacity: 0.1;
+            border-radius: 50%;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(232, 90, 140, 0.2);
+            border-color: var(--sakura-pink);
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            color: var(--deep-pink);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .card-description {
+            color: var(--charcoal);
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .tableau-container {
+            width: 100%;
+            height: 400px;
+            border-radius: 15px;
+            overflow: hidden;
+            background: var(--light-gray);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--sakura-pink);
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        .tableau-placeholder {
+            text-align: center;
+            color: var(--deep-pink);
+            font-size: 0.9rem;
+        }
+
+        .update-info {
+            background: linear-gradient(45deg, var(--soft-pink), var(--cream));
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-top: 3rem;
+            border-left: 5px solid var(--deep-pink);
+        }
+
+        .update-title {
+            color: var(--deep-pink);
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .update-steps {
+            color: var(--charcoal);
+            font-size: 0.9rem;
+        }
+
+        .update-steps li {
+            margin-bottom: 0.5rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            margin-top: 3rem;
+            background: rgba(255, 255, 255, 0.5);
+            border-top: 1px solid rgba(255, 183, 197, 0.3);
+            color: var(--charcoal);
+            opacity: 0.8;
+        }
+
+        .japanese-pattern {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: repeating-linear-gradient(
+                45deg,
+                var(--sakura-pink),
+                var(--sakura-pink) 2px,
+                transparent 2px,
+                transparent 8px
+            );
+            opacity: 0.3;
+            border-radius: 5px;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 1.5rem 0;
+                box-shadow: 
+                    0 2px 15px rgba(232, 90, 140, 0.15),
+                    0 4px 30px rgba(232, 90, 140, 0.1),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            }
+
+            .portfolio-label {
+                font-size: 0.7rem;
+                letter-spacing: 1px;
+                text-shadow: 
+                    0 1px 2px rgba(232, 90, 140, 0.3);
+            }
+
+            h1 {
+                font-size: 2rem;
+                text-shadow: 
+                    0 2px 4px rgba(232, 90, 140, 0.4),
+                    0 3px 6px rgba(0, 0, 0, 0.15);
+            }
+
+            .subtitle {
+                font-size: 1rem;
+                text-shadow: 
+                    0 1px 2px rgba(0, 0, 0, 0.1);
+            }
+            
+            .gallery-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .tableau-container {
+                height: 300px;
+            }
+
+            .dashboard-card {
+                padding: 1.2rem;
+            }
+
+            .card-title {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+                text-shadow: 
+                    0 1px 3px rgba(232, 90, 140, 0.4),
+                    0 2px 4px rgba(0, 0, 0, 0.15);
+            }
+
+            .subtitle {
+                font-size: 0.9rem;
+            }
+
+            .dashboard-card {
+                padding: 1rem;
+            }
+
+            .tableau-container {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景エフェクト -->
+    <div class="background-effects">
+        <!-- 桜の花びら -->
+        <div class="sakura" style="left: 10%; animation-delay: 0s;"></div>
+        <div class="sakura" style="left: 20%; animation-delay: 1s;"></div>
+        <div class="sakura" style="left: 30%; animation-delay: 2s;"></div>
+        <div class="sakura" style="left: 40%; animation-delay: 3s;"></div>
+        <div class="sakura" style="left: 50%; animation-delay: 4s;"></div>
+        <div class="sakura" style="left: 60%; animation-delay: 5s;"></div>
+        <div class="sakura" style="left: 70%; animation-delay: 6s;"></div>
+        <div class="sakura" style="left: 80%; animation-delay: 7s;"></div>
+        <div class="sakura" style="left: 90%; animation-delay: 8s;"></div>
+        
+        <!-- キラキラエフェクト -->
+        <div class="sparkle small" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+        <div class="sparkle medium" style="top: 40%; left: 80%; animation-delay: 0.5s;"></div>
+        <div class="sparkle large" style="top: 60%; left: 25%; animation-delay: 1s;"></div>
+        <div class="sparkle small" style="top: 80%; left: 70%; animation-delay: 1.5s;"></div>
+        <div class="sparkle medium" style="top: 10%; left: 60%; animation-delay: 2s;"></div>
+        <div class="sparkle small" style="top: 90%; left: 40%; animation-delay: 2.5s;"></div>
+        
+        <!-- 光る粒子 -->
+        <div class="particle" style="top: 30%; left: 10%; animation-delay: 0s;"></div>
+        <div class="particle" style="top: 50%; left: 90%; animation-delay: 1s;"></div>
+        <div class="particle" style="top: 70%; left: 20%; animation-delay: 2s;"></div>
+        <div class="particle" style="top: 20%; left: 85%; animation-delay: 3s;"></div>
+        <div class="particle" style="top: 85%; left: 15%; animation-delay: 4s;"></div>
+        
+        <!-- 波紋エフェクト -->
+        <div class="ripple" style="top: 25%; left: 75%; animation-delay: 0s;"></div>
+        <div class="ripple" style="top: 65%; left: 30%; animation-delay: 2s;"></div>
+        <div class="ripple" style="top: 45%; left: 60%; animation-delay: 4s;"></div>
+        <!-- 波紋エフェクト -->
+        <div class="ripple" style="top: 25%; left: 75%; animation-delay: 0s;"></div>
+        <div class="ripple" style="top: 65%; left: 30%; animation-delay: 2s;"></div>
+        <div class="ripple" style="top: 45%; left: 60%; animation-delay: 4s;"></div>
+
+        <!-- 猫エフェクト -->
+        <div class="cat walking-right" style="top: 80%; animation-delay: 0s;">🐱</div>
+        <div class="cat walking-left" style="top: 60%; animation-delay: 5s;">😺</div>
+        <div class="cat walking-right" style="top: 40%; animation-delay: 10s;">🐾</div>
+        
+        <!-- 猫じゃらし -->
+        <div class="cat-toy" style="top: 20%; left: 30%; animation-delay: 1s;">🎋</div>
+        <div class="cat-toy" style="top: 70%; left: 70%; animation-delay: 3s;">🐟</div>
+        
+        <!-- 魚 -->
+        <div class="fish" style="top: 35%; left: 60%; animation-delay: 2s;">🐠</div>
+        <div class="fish" style="top: 75%; left: 20%; animation-delay: 4s;">🐟</div>
+    </div>
+
+    <header>
+        <div class="header-decoration"></div>
+        <div class="header-cat">🐱</div>
+        <p class="portfolio-label">Portfolio</p>
+        <h1>Tableau ダッシュボード ギャラリー</h1>
+        <p class="subtitle">美しいデータビジュアライゼーションの世界へようこそ</p>
+    </header>
+
+    <div class="container">
+        <div class="gallery-grid">
+            <!-- ダッシュボード カード 1 -->
+            <div class="dashboard-card">
+                <div class="japanese-pattern"></div>
+                <div class="card-header">
+                    <h3 class="card-title">売上分析ダッシュボード</h3>
+                    <p class="card-description">月別・地域別の売上動向を美しく可視化</p>
+                </div>
+                <div class="tableau-container">
+                    <div class="tableau-placeholder">
+                        <p>🌸 Tableau埋め込みコードをここに配置 🌸</p>
+                        <small>例：&lt;div class='tableauPlaceholder'&gt;...&lt;/div&gt;</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ダッシュボード カード 2 -->
+            <div class="dashboard-card">
+                <div class="japanese-pattern"></div>
+                <div class="card-header">
+                    <h3 class="card-title">顧客分析レポート</h3>
+                    <p class="card-description">顧客セグメント別の行動パターンを分析</p>
+                </div>
+                <div class="tableau-container">
+                    <div class="tableau-placeholder">
+                        <p>🌸 Tableau埋め込みコードをここに配置 🌸</p>
+                        <small>例：&lt;div class='tableauPlaceholder'&gt;...&lt;/div&gt;</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ダッシュボード カード 3 -->
+            <div class="dashboard-card">
+                <div class="japanese-pattern"></div>
+                <div class="card-header">
+                    <h3 class="card-title">在庫管理ダッシュボード</h3>
+                    <p class="card-description">リアルタイムの在庫状況と予測分析</p>
+                </div>
+                <div class="tableau-container">
+                    <div class="tableau-placeholder">
+                        <p>🌸 Tableau埋め込みコードをここに配置 🌸</p>
+                        <small>例：&lt;div class='tableauPlaceholder'&gt;...&lt;/div&gt;</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ダッシュボード カード 4 -->
+            <div class="dashboard-card">
+                <div class="japanese-pattern"></div>
+                <div class="card-header">
+                    <h3 class="card-title">マーケティング効果測定</h3>
+                    <p class="card-description">キャンペーン効果とROIを総合評価</p>
+                </div>
+                <div class="tableau-container">
+                    <div class="tableau-placeholder">
+                        <p>🌸 Tableau埋め込みコードをここに配置 🌸</p>
+                        <small>例：&lt;div class='tableauPlaceholder'&gt;...&lt;/div&gt;</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 更新方法の説明 -->
+        <div class="update-info">
+            <h3 class="update-title">📝 ダッシュボードの更新方法</h3>
+            <div class="update-steps">
+                <ol>
+                    <li>Tableau Publicで新しいダッシュボードを公開します</li>
+                    <li>「共有」→「埋め込みコード」から埋め込み用HTMLを取得します</li>
+                    <li>上記の「Tableau埋め込みコードをここに配置」部分を埋め込みコードで置き換えます</li>
+                    <li>カードのタイトルと説明も適宜更新してください</li>
+                    <li>新しいダッシュボードを追加する場合は、既存のカードをコピーして内容を変更します</li>
+                </ol>
+                <p style="margin-top: 1rem; font-style: italic; color: var(--deep-pink);">
+                    ※ このテンプレートはレスポンシブ対応で、どのデバイスでも美しく表示されます
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Tableau ダッシュボード ギャラリー | データで未来を描く</p>
+    </footer>
+
+    <script>
+        const backgroundEffects = document.querySelector('.background-effects');
+
+        // 背景クリックエフェクト
+        document.addEventListener('click', function(e) {
+            const x = e.clientX;
+            const y = e.clientY;
+            
+            // 複数のエフェクトを同時実行
+            createClickSparkles(x, y);
+            createClickRipple(x, y);
+            createClickParticles(x, y);
+            createMusicalNote(x, y);
+            createLightRing(x, y);
+            createCatEffect(x, y); // 猫エフェクト追加
+            triggerHarmonyEffect();
+        });
+
+        // 猫エフェクト（クリック時）
+        function createCatEffect(x, y) {
+            // 足跡エフェクト
+            for (let i = 0; i < 4; i++) {
+                setTimeout(() => {
+                    const paw = document.createElement('div');
+                    paw.className = 'paw-print';
+                    paw.style.left = (x - 10 + Math.random() * 20) + 'px';
+                    paw.style.top = (y - 10 + Math.random() * 20) + 'px';
+                    paw.textContent = '🐾';
+                    
+                    document.body.appendChild(paw);
+                    
+                    setTimeout(() => paw.remove(), 3000);
+                }, i * 200);
+            }
+
+            // 鳴き声エフェクト
+            if (Math.random() < 0.3) { // 30%の確率
+                const meows = ['にゃーん', 'みゃー', 'ゴロゴロ', 'Meow!', 'にゃ♪'];
+                const meow = document.createElement('div');
+                meow.className = 'meow-text';
+                meow.style.left = (x - 20) + 'px';
+                meow.style.top = (y - 30) + 'px';
+                meow.textContent = meows[Math.floor(Math.random() * meows.length)];
+                
+                document.body.appendChild(meow);
+                
+                setTimeout(() => meow.remove(), 2000);
+            }
+        }
+
+        // 動的に猫を生成
+        function createRandomCat() {
+            const cats = ['🐱', '😺', '😸', '😻', '🙀', '😿', '😾'];
+            const cat = document.createElement('div');
+            const isRight = Math.random() < 0.5;
+            
+            cat.className = `cat ${isRight ? 'walking-right' : 'walking-left'}`;
+            cat.style.top = (Math.random() * 60 + 20) + '%';
+            cat.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            cat.style.fontSize = (Math.random() * 10 + 20) + 'px';
+            cat.textContent = cats[Math.floor(Math.random() * cats.length)];
+            
+            backgroundEffects.appendChild(cat);
+            
+            setTimeout(() => {
+                cat.remove();
+            }, 20000);
+        }
+
+        // 魚を動的に生成
+        function createRandomFish() {
+            const fish = ['🐟', '🐠', '🦈', '🐡'];
+            const fishEl = document.createElement('div');
+            
+            fishEl.className = 'fish';
+            fishEl.style.top = Math.random() * 80 + '%';
+            fishEl.style.left = Math.random() * 80 + '%';
+            fishEl.style.animationDuration = (Math.random() * 5 + 6) + 's';
+            fishEl.textContent = fish[Math.floor(Math.random() * fish.length)];
+            
+            backgroundEffects.appendChild(fishEl);
+            
+            setTimeout(() => {
+                fishEl.remove();
+            }, 12000);
+        }
+
+        // クリック時のキラキラエフェクト
+        function createClickSparkles(x, y) {
+            const colors = ['#FFB7C5', '#E85A8C', '#D4AF37', '#FFD700'];
+            
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    const sparkle = document.createElement('div');
+                    sparkle.className = 'click-sparkle';
+                    sparkle.style.left = (x - 10 + Math.random() * 20) + 'px';
+                    sparkle.style.top = (y - 10 + Math.random() * 20) + 'px';
+                    sparkle.style.width = (Math.random() * 15 + 5) + 'px';
+                    sparkle.style.height = sparkle.style.width;
+                    sparkle.style.background = `radial-gradient(circle, ${colors[Math.floor(Math.random() * colors.length)]}, transparent)`;
+                    
+                    document.body.appendChild(sparkle);
+                    
+                    setTimeout(() => sparkle.remove(), 1500);
+                }, i * 100);
+            }
+        }
+
+        // クリック時の波紋エフェクト
+        function createClickRipple(x, y) {
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const ripple = document.createElement('div');
+                    ripple.className = 'click-ripple';
+                    ripple.style.left = (x - 0) + 'px';
+                    ripple.style.top = (y - 0) + 'px';
+                    ripple.style.borderColor = i === 0 ? '#E85A8C' : 
+                                              i === 1 ? '#FFB7C5' : '#D4AF37';
+                    
+                    document.body.appendChild(ripple);
+                    
+                    setTimeout(() => ripple.remove(), 2000);
+                }, i * 200);
+            }
+        }
+
+        // クリック時の粒子エフェクト
+        function createClickParticles(x, y) {
+            const colors = ['#FFB7C5', '#E85A8C', '#D4AF37', '#FFB6C1'];
+            
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'click-particle';
+                
+                const angle = (i * 30) * Math.PI / 180;
+                const distance = 80 + Math.random() * 40;
+                const dx = Math.cos(angle) * distance + 'px';
+                const dy = Math.sin(angle) * distance + 'px';
+                
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.boxShadow = `0 0 10px ${colors[Math.floor(Math.random() * colors.length)]}`;
+                particle.style.setProperty('--dx', dx);
+                particle.style.setProperty('--dy', dy);
+                
+                document.body.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 2000);
+            }
+        }
+
+        // 音符エフェクト
+        function createMusicalNote(x, y) {
+            const notes = ['♪', '♫', '♬', '♩', '♭', '♯'];
+            
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const note = document.createElement('div');
+                    note.className = 'musical-note';
+                    note.style.left = (x - 10 + Math.random() * 20) + 'px';
+                    note.style.top = y + 'px';
+                    note.textContent = notes[Math.floor(Math.random() * notes.length)];
+                    
+                    document.body.appendChild(note);
+                    
+                    setTimeout(() => note.remove(), 3000);
+                }, i * 300);
+            }
+        }
+
+        // 光の輪エフェクト
+        function createLightRing(x, y) {
+            const ring = document.createElement('div');
+            ring.className = 'light-ring';
+            ring.style.left = (x - 5) + 'px';
+            ring.style.top = (y - 5) + 'px';
+            
+            document.body.appendChild(ring);
+            
+            setTimeout(() => ring.remove(), 3000);
+        }
+
+        // 調和エフェクト（背景色変化）
+        function triggerHarmonyEffect() {
+            document.body.classList.add('harmony-effect');
+            
+            setTimeout(() => {
+                document.body.classList.remove('harmony-effect');
+            }, 2000);
+        }
+
+        // 桜の花びらを動的に生成
+        function createSakura() {
+            const sakura = document.createElement('div');
+            sakura.className = 'sakura';
+            sakura.style.left = Math.random() * 100 + '%';
+            sakura.style.animationDuration = (Math.random() * 3 + 7) + 's';
+            sakura.style.opacity = Math.random() * 0.2 + 0.1;
+            backgroundEffects.appendChild(sakura);
+
+            setTimeout(() => {
+                sakura.remove();
+            }, 10000);
+        }
+
+        // キラキラエフェクトを動的に生成
+        function createSparkle() {
+            const sparkle = document.createElement('div');
+            const sizes = ['small', 'medium', 'large'];
+            const size = sizes[Math.floor(Math.random() * sizes.length)];
+            
+            sparkle.className = `sparkle ${size}`;
+            sparkle.style.top = Math.random() * 100 + '%';
+            sparkle.style.left = Math.random() * 100 + '%';
+            sparkle.style.animationDelay = Math.random() * 2 + 's';
+            sparkle.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            
+            backgroundEffects.appendChild(sparkle);
+
+            setTimeout(() => {
+                sparkle.remove();
+            }, 4000);
+        }
+
+        // 光る粒子を動的に生成
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 3 + 's';
+            particle.style.animationDuration = (Math.random() * 3 + 4) + 's';
+            
+            backgroundEffects.appendChild(particle);
+
+            setTimeout(() => {
+                particle.remove();
+            }, 7000);
+        }
+
+        // 波紋エフェクトを動的に生成
+        function createRipple() {
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            ripple.style.position = 'absolute';
+            ripple.style.top = Math.random() * 100 + '%';
+            ripple.style.left = Math.random() * 100 + '%';
+            ripple.style.animationDelay = Math.random() * 2 + 's';
+            
+            backgroundEffects.appendChild(ripple);
+
+            setTimeout(() => {
+                ripple.remove();
+            }, 4000);
+        }
+
+        // マウス追従キラキラエフェクト
+        document.addEventListener('mousemove', function(e) {
+            if (Math.random() < 0.05) { // 5%の確率に調整
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle small';
+                sparkle.style.position = 'fixed';
+                sparkle.style.left = e.clientX + 'px';
+                sparkle.style.top = e.clientY + 'px';
+                sparkle.style.pointerEvents = 'none';
+                sparkle.style.zIndex = '1000';
+                
+                document.body.appendChild(sparkle);
+                
+                setTimeout(() => {
+                    sparkle.remove();
+                }, 3000);
+            }
+        });
+
+        // 定期的にエフェクトを生成
+        setInterval(createSakura, 2000);
+        setInterval(createSparkle, 800);
+        setInterval(createParticle, 1500);
+        setInterval(createRipple, 3000);
+        setInterval(createRandomCat, 8000); // 猫を8秒ごと
+        setInterval(createRandomFish, 6000); // 魚を6秒ごと
+
+        // カードのホバーエフェクトを強化
+        document.querySelectorAll('.dashboard-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+                
+                // ホバー時にキラキラエフェクト追加
+                for(let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        const sparkle = document.createElement('div');
+                        sparkle.className = 'sparkle medium';
+                        sparkle.style.position = 'absolute';
+                        sparkle.style.top = Math.random() * 100 + '%';
+                        sparkle.style.left = Math.random() * 100 + '%';
+                        sparkle.style.zIndex = '10';
+                        this.appendChild(sparkle);
+                        
+                        setTimeout(() => {
+                            sparkle.remove();
+                        }, 3000);
+                    }, i * 200);
+                }
+
+                // 時々猫の足跡も追加
+                if (Math.random() < 0.4) {
+                    setTimeout(() => {
+                        const paw = document.createElement('div');
+                        paw.style.position = 'absolute';
+                        paw.style.top = Math.random() * 80 + '%';
+                        paw.style.left = Math.random() * 80 + '%';
+                        paw.style.fontSize = '14px';
+                        paw.style.opacity = '0.6';
+                        paw.style.zIndex = '10';
+                        paw.style.animation = 'pawPrint 2s ease-out forwards';
+                        paw.textContent = '🐾';
+                        this.appendChild(paw);
+                        
+                        setTimeout(() => {
+                            paw.remove();
+                        }, 2000);
+                    }, 500);
+                }
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+    </script>
+</body>
+</html>
