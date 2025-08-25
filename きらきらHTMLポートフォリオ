@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau データビジュアライゼーション ギャラリー</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+        
+        :root {
+            --sakura-pink: #FFB7C5;
+            --soft-pink: #F8E8EA;
+            --deep-pink: #E85A8C;
+            --cream: #FFF5F5;
+            --charcoal: #333333;
+            --light-gray: #F5F5F5;
+            --gold: #D4AF37;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, var(--cream) 0%, var(--soft-pink) 100%);
+            color: var(--charcoal);
+            line-height: 1.6;
+        }
+
+        /* 背景エフェクト */
+        .background-effects {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* 桜の花びらアニメーション */
+        .sakura {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--sakura-pink);
+            border-radius: 50% 0 50% 0;
+            animation: fall 10s infinite linear;
+            opacity: 0.1;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 0.3;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* キラキラエフェクト */
+        .sparkle {
+            position: absolute;
+            background: radial-gradient(circle, var(--sakura-pink) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: sparkle 3s infinite ease-in-out;
+        }
+
+        .sparkle.small {
+            width: 3px;
+            height: 3px;
+        }
+
+        .sparkle.medium {
+            width: 5px;
+            height: 5px;
+        }
+
+        .sparkle.large {
+            width: 8px;
+            height: 8px;
+        }
+
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1) rotate(180deg);
+            }
+        }
+
+        /* 光る粒子エフェクト */
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--gold);
+            border-radius: 50%;
+            animation: float 6s infinite ease-in-out;
+            box-shadow: 0 0 6px var(--gold);
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) translateX(0px);
+                opacity: 0.3;
+            }
+            33% {
+                transform: translateY(-20px) translateX(10px);
+                opacity: 1;
+            }
+            66% {
+                transform: translateY(-10px) translateX(-15px);
+                opacity: 0.7;
+            }
+        }
+
+        /* 輝く波紋エフェクト */
+        .ripple {
+            position: absolute;
+            border: 1px solid var(--sakura-pink);
+            border-radius: 50%;
+            animation: ripple 4s infinite ease-out;
+        }
+
+        @keyframes ripple {
+            0% {
+                width: 0;
+                height: 0;
+                opacity: 1;
+            }
+            100% {
+                width: 200px;
+                height: 200px;
+                opacity: 0;
+            }
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem 0;
+            text-align: center;
+            border-bottom: 3px solid var(--sakura-pink);
+            position: relative;
+        }
+
+        .header-decoration {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255, 183, 197, 0.2) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+        }
+
+        .portfolio-label {
+            font-size: 0.8rem;
+            color: var(--deep-pink);
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--deep-pink);
+            margin-bottom: 0.5rem;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+            font-weight: 500;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--charcoal);
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .dashboard-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(232, 90, 140, 0.1);
+            border: 1px solid rgba(255, 183, 197, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, var(--sakura-pink), transparent);
+            opacity: 0.1;
+            border-radius: 50%;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(232, 90, 140, 0.2);
+            border-color: var(--sakura-pink);
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            color: var(--deep-pink);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .card-description {
+            color: var(--charcoal);
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .tableau-container {
+            width: 100%;
+            height: 400px;
+            border-radius: 15px;
+            overflow: hidden;
+            background: var(--light-gray);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--sakura-pink);
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        .tableau-placeholder {
+            text-align: center;
+            color: var(--deep-pink);
+            font-size: 0.9rem;
+        }
+
+        .update-info {
+            background: linear-gradient(45deg, var(--soft-pink), var(--cream));
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-top: 3rem;
+            border-left: 5px solid var(--deep-pink);
+        }
+
+        .update-title {
+            color: var(--deep-pink);
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .update-steps {
+            color: var(--charcoal);
+            font-size: 0.9rem;
+        }
+
+        .update-steps li {
+            margin-bottom: 0.5rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            margin-top: 3rem;
+            background: rgba(255, 255, 255, 0.5);
+            border-top: 1px solid rgba(255, 183, 197, 0.3);
+            color: var(--charcoal);
+            opacity: 0.8;
+        }
+
+        .japanese-pattern {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: repeating-linear-gradient(
+                45deg,
+                var(--sakura-pink),
+                var(--sakura-pink) 2px,
+                transparent 2px,
+                transparent 8px
+            );
+            opacity: 0.3;
+            border-radius: 5px;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 1.5rem 0;
+            }
+
+            .portfolio-label {
+                font-size: 0.7rem;
+                letter-spacing: 1px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+            
+            .gallery-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .tableau-container {
+                height: 300px;
+            }
+
+            .dashboard-card {
+                padding: 1.2rem;
+            }
+
+            .card-title {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .subtitle {
+                font-size: 0.9rem;
+            }
+
+            .dashboard-card {
+                padding: 1rem;
+            }
+
+            .tableau-container {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景エフェクト -->
+    <div class="background-effects">
+        <!-- 桜の花びら -->
+        <div class="sakura" style="left: 10%; animation-delay: 0s;"></div>
+        <div class="sakura" style="left: 20%; animation-delay: 1s;"></div>
+        <div class="sakura" style="left: 30%; animation-delay: 2s;"></div>
+        <div class="sakura" style="left: 40%; animation-delay: 3s;"></div>
+        <div class="sakura" style="left: 50%; animation-delay: 4s;"></div>
+        <div class="sakura" style="left: 60%; animation-delay: 5s;"></div>
+        <div class="sakura" style="left: 70%; animation-delay: 6s;"></div>
+        <div class="sakura" style="left: 80%; animation-delay: 7s;"></div>
+        <div class="sakura" style="left: 90%; animation-delay: 8s;"></div>
+        
+        <!-- キラキラエフェクト -->
+        <div class="sparkle small" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+        <div class="sparkle medium" style="top: 40%; left: 80%; animation-delay: 0.5s;"></div>
+        <div class="sparkle large" style="top: 60%; left: 25%; animation-delay: 1s;"></div>
+        <div class="sparkle small" style="top: 80%; left: 70%; animation-delay: 1.5s;"></div>
+        <div class="sparkle medium" style="top: 10%; left: 60%; animation-delay: 2s;"></div>
+        <div class="sparkle small" style="top: 90%; left: 40%; animation-delay: 2.5s;"></div>
+        
+        <!-- 光る粒子 -->
+        <div class="particle" style="top: 30%; left: 10%; animation-delay: 0s;"></div>
+        <div class="particle" style="top: 50%; left: 90%; animation-delay: 1s;"></div>
+        <div class="particle" style="top: 70%; left: 20%; animation-delay: 2s;"></div>
+        <div class="particle" style="top: 20%; left: 85%; animation-delay: 3s;"></div>
+        <div class="particle" style="top: 85%; left: 15%; animation-delay: 4s;"></div>
+        
+        <!-- 波紋エフェクト -->
+        <div class="ripple" style="top: 25%; left: 75%; animation-delay: 0s;"></div>
+        <div class="ripple" style="top: 65%; left: 30%; animation-delay: 2s;"></div>
+        <div class="ripple" style="top: 45%; left: 60%; animation-delay: 4s;"></div>
+    </div>
+
+    <header>
+        <div class="header-decoration"></div>
+        <p class="portfolio-label">Portfolio</p>
+        <h1>Tableau ダッシュボード ギャラリー</h1>
+        <p class="subtitle">美しいデータビジュアライゼーションの世界へようこそ</p>
+    </header>
+
+    <div class="container">
+        <div class="gallery-grid">
+            <!-- ダッシュボード カード 1 -->
+            <div class="dashboard-card">
+                <div class="japanese-pattern"></div>
+                <div class="card-header">
+                    <h3 class="card-title">売上分析ダッシュボード</h3>
+                    <p class="card-description">月別・地域別の売上動向を美しく可視化</p>
+                </div>
+                <div class="tableau-container">
+                    <div class="tableau-placeholder">
+                        <p>🌸 Tableau埋め込みコードをここに配置 🌸</p>
+                        <small>例：&lt;div class='tableauPlaceholder'&gt;...&lt;/div&gt;</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ダッシュボード カード 2 -->
+            <div class="dashboard-card">
+                <div class="japanese-pattern"></div>
+                <div class="card-header">
+                    <h3 class="card-title">顧客分析レポート</h3>
+                    <p class="card-description">顧客セグメント別の行動パターンを分析</p>
+                </div>
+                <div class="tableau-container">
+                    <div class="tableau-placeholder">
+                        <p>🌸 Tableau埋め込みコードをここに配置 🌸</p>
+                        <small>例：&lt;div class='tableauPlaceholder'&gt;...&lt;/div&gt;</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ダッシュボード カード 3 -->
+            <div class="dashboard-card">
+                <div class="japanese-pattern"></div>
+                <div class="card-header">
+                    <h3 class="card-title">在庫管理ダッシュボード</h3>
+                    <p class="card-description">リアルタイムの在庫状況と予測分析</p>
+                </div>
+                <div class="tableau-container">
+                    <div class="tableau-placeholder">
+                        <p>🌸 Tableau埋め込みコードをここに配置 🌸</p>
+                        <small>例：&lt;div class='tableauPlaceholder'&gt;...&lt;/div&gt;</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ダッシュボード カード 4 -->
+            <div class="dashboard-card">
+                <div class="japanese-pattern"></div>
+                <div class="card-header">
+                    <h3 class="card-title">マーケティング効果測定</h3>
+                    <p class="card-description">キャンペーン効果とROIを総合評価</p>
+                </div>
+                <div class="tableau-container">
+                    <div class="tableau-placeholder">
+                        <p>🌸 Tableau埋め込みコードをここに配置 🌸</p>
+                        <small>例：&lt;div class='tableauPlaceholder'&gt;...&lt;/div&gt;</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 更新方法の説明 -->
+        <div class="update-info">
+            <h3 class="update-title">📝 ダッシュボードの更新方法</h3>
+            <div class="update-steps">
+                <ol>
+                    <li>Tableau Publicで新しいダッシュボードを公開します</li>
+                    <li>「共有」→「埋め込みコード」から埋め込み用HTMLを取得します</li>
+                    <li>上記の「Tableau埋め込みコードをここに配置」部分を埋め込みコードで置き換えます</li>
+                    <li>カードのタイトルと説明も適宜更新してください</li>
+                    <li>新しいダッシュボードを追加する場合は、既存のカードをコピーして内容を変更します</li>
+                </ol>
+                <p style="margin-top: 1rem; font-style: italic; color: var(--deep-pink);">
+                    ※ このテンプレートはレスポンシブ対応で、どのデバイスでも美しく表示されます
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Tableau ダッシュボード ギャラリー | データで未来を描く</p>
+    </footer>
+
+    <script>
+        const backgroundEffects = document.querySelector('.background-effects');
+
+        // 桜の花びらを動的に生成
+        function createSakura() {
+            const sakura = document.createElement('div');
+            sakura.className = 'sakura';
+            sakura.style.left = Math.random() * 100 + '%';
+            sakura.style.animationDuration = (Math.random() * 3 + 7) + 's';
+            sakura.style.opacity = Math.random() * 0.2 + 0.1;
+            backgroundEffects.appendChild(sakura);
+
+            setTimeout(() => {
+                sakura.remove();
+            }, 10000);
+        }
+
+        // キラキラエフェクトを動的に生成
+        function createSparkle() {
+            const sparkle = document.createElement('div');
+            const sizes = ['small', 'medium', 'large'];
+            const size = sizes[Math.floor(Math.random() * sizes.length)];
+            
+            sparkle.className = `sparkle ${size}`;
+            sparkle.style.top = Math.random() * 100 + '%';
+            sparkle.style.left = Math.random() * 100 + '%';
+            sparkle.style.animationDelay = Math.random() * 2 + 's';
+            sparkle.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            
+            backgroundEffects.appendChild(sparkle);
+
+            setTimeout(() => {
+                sparkle.remove();
+            }, 4000);
+        }
+
+        // 光る粒子を動的に生成
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 3 + 's';
+            particle.style.animationDuration = (Math.random() * 3 + 4) + 's';
+            
+            backgroundEffects.appendChild(particle);
+
+            setTimeout(() => {
+                particle.remove();
+            }, 7000);
+        }
+
+        // 波紋エフェクトを動的に生成
+        function createRipple() {
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            ripple.style.top = Math.random() * 100 + '%';
+            ripple.style.left = Math.random() * 100 + '%';
+            ripple.style.animationDelay = Math.random() * 2 + 's';
+            
+            backgroundEffects.appendChild(ripple);
+
+            setTimeout(() => {
+                ripple.remove();
+            }, 4000);
+        }
+
+        // マウス追従キラキラエフェクト
+        document.addEventListener('mousemove', function(e) {
+            if (Math.random() < 0.1) { // 10%の確率でキラキラ生成
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle small';
+                sparkle.style.position = 'fixed';
+                sparkle.style.left = e.clientX + 'px';
+                sparkle.style.top = e.clientY + 'px';
+                sparkle.style.pointerEvents = 'none';
+                sparkle.style.zIndex = '1000';
+                
+                document.body.appendChild(sparkle);
+                
+                setTimeout(() => {
+                    sparkle.remove();
+                }, 3000);
+            }
+        });
+
+        // 定期的にエフェクトを生成
+        setInterval(createSakura, 2000);
+        setInterval(createSparkle, 800);
+        setInterval(createParticle, 1500);
+        setInterval(createRipple, 3000);
+
+        // カードのホバーエフェクトを強化
+        document.querySelectorAll('.dashboard-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+                
+                // ホバー時にキラキラエフェクト追加
+                for(let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        const sparkle = document.createElement('div');
+                        sparkle.className = 'sparkle medium';
+                        sparkle.style.position = 'absolute';
+                        sparkle.style.top = Math.random() * 100 + '%';
+                        sparkle.style.left = Math.random() * 100 + '%';
+                        sparkle.style.zIndex = '10';
+                        this.appendChild(sparkle);
+                        
+                        setTimeout(() => {
+                            sparkle.remove();
+                        }, 3000);
+                    }, i * 200);
+                }
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+    </script>
+</body>
+</html>
